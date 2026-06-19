@@ -8,7 +8,7 @@ import { UpdateShareLinkOperationDetails } from '../../../services/agents.api';
     standalone: true,
     imports: [DatePipe],
     templateUrl: './update-share-link-operation-details.component.html',
-    styleUrl: './update-share-link-operation-details.component.scss'
+    styleUrl: '../_op-details.scss'
 })
 export class UpdateShareLinkOperationDetailsComponent {
     details = input.required<UpdateShareLinkOperationDetails>();

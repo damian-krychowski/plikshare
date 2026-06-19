@@ -7,7 +7,7 @@ import { ListWorkspaceContentOperationDetails } from '../../../services/agents.a
     standalone: true,
     imports: [],
     templateUrl: './list-workspace-content-operation-details.component.html',
-    styleUrl: './list-workspace-content-operation-details.component.scss'
+    styleUrl: '../_op-details.scss'
 })
 export class ListWorkspaceContentOperationDetailsComponent {
     details = input.required<ListWorkspaceContentOperationDetails>();

@@ -6,7 +6,7 @@ import { CreateWorkspaceOperationDetails } from '../../../services/agents.api';
     standalone: true,
     imports: [],
     templateUrl: './create-workspace-operation-details.component.html',
-    styleUrl: './create-workspace-operation-details.component.scss'
+    styleUrl: '../_op-details.scss'
 })
 export class CreateWorkspaceOperationDetailsComponent {
     details = input.required<CreateWorkspaceOperationDetails>();

@@ -7,7 +7,7 @@ import { RenameFileOperationDetails } from '../../../services/agents.api';
     standalone: true,
     imports: [],
     templateUrl: './rename-file-operation-details.component.html',
-    styleUrl: './rename-file-operation-details.component.scss'
+    styleUrl: '../_op-details.scss'
 })
 export class RenameFileOperationDetailsComponent {
     details = input.required<RenameFileOperationDetails>();

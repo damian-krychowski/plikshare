@@ -111,7 +111,7 @@ public class agent_box_access_tests : TestFixture
         var result = await Api.Agents.GetBoxTools(agent.ExternalId, box.ExternalId, AppOwner.Cookie);
 
         //then
-        result.Tools.Should().HaveCount(18);
+        result.Tools.Should().HaveCount(36);
         result.Tools.Should().NotContain(t => t.Name == "list_workspaces");
 
         var bulkDelete = result.Tools.Single(t => t.Name == "bulk_delete");

@@ -6,7 +6,7 @@ import { SearchOperationDetails } from '../../../services/agents.api';
     standalone: true,
     imports: [],
     templateUrl: './search-operation-details.component.html',
-    styleUrl: './search-operation-details.component.scss'
+    styleUrl: '../_op-details.scss'
 })
 export class SearchOperationDetailsComponent {
     details = input.required<SearchOperationDetails>();

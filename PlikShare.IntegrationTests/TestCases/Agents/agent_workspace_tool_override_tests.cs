@@ -33,13 +33,22 @@ public class agent_workspace_tool_override_tests : TestFixture
         var result = await Api.Agents.GetWorkspaceTools(agent.ExternalId, workspace.ExternalId, AppOwner.Cookie);
 
         //then
-        result.Tools.Should().HaveCount(18);
+        result.Tools.Should().HaveCount(36);
         result.Tools.Should().NotContain(t => t.Name == "list_workspaces");
         result.Tools.Should().Contain(t => t.Name == "bulk_delete");
+        result.Tools.Select(t => t.Name).Should().Contain(
+            ["list_boxes", "get_box", "create_box", "update_box", "delete_box"]);
+        result.Tools.Select(t => t.Name).Should().Contain(
+            ["list_box_links", "create_box_link", "update_box_link", "delete_box_link", "regenerate_box_link_access_code"]);
+        result.Tools.Select(t => t.Name).Should().Contain(
+            ["list_box_members", "invite_box_members", "update_box_member_permissions", "revoke_box_member"]);
 
         // File-id tools and search resolve their workspace inside the tool, so they are overridable too.
         result.Tools.Select(t => t.Name).Should().Contain(
             ["get_file", "read_file", "get_file_download_link", "search"]);
+
+        result.Tools.Select(t => t.Name).Should().Contain(
+            ["list_workspace_members", "invite_workspace_members", "update_workspace_member_permissions", "revoke_workspace_member"]);
 
         var bulkDelete = result.Tools.Single(t => t.Name == "bulk_delete");
         bulkDelete.OverrideIsEnabled.Should().BeNull();

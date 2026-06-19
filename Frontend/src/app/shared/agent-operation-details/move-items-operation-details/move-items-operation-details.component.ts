@@ -7,7 +7,7 @@ import { MoveItemDetail, MoveItemsOperationDetails } from '../../../services/age
     standalone: true,
     imports: [],
     templateUrl: './move-items-operation-details.component.html',
-    styleUrl: './move-items-operation-details.component.scss'
+    styleUrl: '../_op-details.scss'
 })
 export class MoveItemsOperationDetailsComponent {
     details = input.required<MoveItemsOperationDetails>();

@@ -25,11 +25,16 @@ export class AgentToolsConfigComponent implements OnInit {
     constructor(private _agentsApi: AgentsApi) {}
 
     async ngOnInit() {
-        await this.loadGlobal();
+        await this.loadGlobal({ showLoading: true });
     }
 
-    private async loadGlobal() {
-        this.isLoading.set(true);
+    // showLoading only on the initial fetch. The post-save refresh must stay silent: flipping
+    // isLoading tears down and rebuilds the whole list (the template gates it behind @if(isLoading)),
+    // which is the flicker on every toggle. The optimistic patch already updated the row in place;
+    // this refresh just reconciles the value-based isDefault flag without re-rendering everything.
+    private async loadGlobal(options: { showLoading: boolean } = { showLoading: false }) {
+        if (options.showLoading)
+            this.isLoading.set(true);
 
         try {
             const result = await this._agentsApi.getAgentTools(this.agentExternalId());
@@ -37,7 +42,8 @@ export class AgentToolsConfigComponent implements OnInit {
         } catch (error) {
             console.error(error);
         } finally {
-            this.isLoading.set(false);
+            if (options.showLoading)
+                this.isLoading.set(false);
         }
     }
 

@@ -15,6 +15,19 @@ public enum AgentToolGroup
 }
 
 /// <summary>
+/// What a tool does, used purely to surface intent in the configuration UI (e.g. a "destructive" pill).
+/// It does not drive behaviour — the enabled/approval config does that — but it lets operators see at a
+/// glance which tools delete data (<see cref="Destructive"/>) or grant people access (<see cref="Invite"/>).
+/// </summary>
+public enum AgentToolKind
+{
+    Read = 0,
+    Write = 1,
+    Destructive = 2,
+    Invite = 3
+}
+
+/// <summary>
 /// Canonical definition of an agent tool: the single source of truth for its UI group, whether it
 /// can carry a per-workspace override, and the per-agent defaults used when no explicit config row
 /// exists. An agent has no admin-console permissions — every capability is expressed here, by the
@@ -26,7 +39,8 @@ public sealed record AgentToolDefinition(
     AgentToolGroup Group,
     bool IsWorkspaceOverridable,
     bool DefaultIsEnabled,
-    bool DefaultRequiresApproval);
+    bool DefaultRequiresApproval,
+    AgentToolKind Kind);
 
 /// <summary>
 /// A partial override at a single cascade level (workspace or box). A null dimension means "inherit
@@ -80,7 +94,31 @@ public static class AgentToolCatalog
         Write(AgentToolNames.UpdateShareLink, "Changes a share link's settings — expiry, password and download limit.", AgentToolGroup.Workspace, overridable: true),
 
         Destructive(AgentToolNames.BulkDelete, "Deletes files and/or folders, including whole folder trees.", AgentToolGroup.Workspace, overridable: true),
-        Destructive(AgentToolNames.DeleteShareLink, "Deletes a share link. The shared files and folders stay intact.", AgentToolGroup.Workspace, overridable: true)
+        Destructive(AgentToolNames.DeleteShareLink, "Deletes a share link. The shared files and folders stay intact.", AgentToolGroup.Workspace, overridable: true),
+
+        Read(AgentToolNames.ListWorkspaceMembers, "Lists the members of a workspace.", AgentToolGroup.Workspace, overridable: true),
+        // Inviting people grants humans access and sends emails, so it requires approval by default.
+        Invite(AgentToolNames.InviteWorkspaceMembers, "Invites people by email to a workspace.", AgentToolGroup.Workspace, overridable: true),
+        Write(AgentToolNames.UpdateWorkspaceMemberPermissions, "Updates a workspace member's permissions.", AgentToolGroup.Workspace, overridable: true),
+        Destructive(AgentToolNames.RevokeWorkspaceMember, "Removes a member from a workspace.", AgentToolGroup.Workspace, overridable: true),
+
+        Read(AgentToolNames.ListBoxes, "Lists the boxes of a workspace.", AgentToolGroup.Workspace, overridable: true),
+        Read(AgentToolNames.GetBox, "Reads the details of a single box.", AgentToolGroup.Workspace, overridable: true),
+        Write(AgentToolNames.CreateBox, "Creates a box in a workspace.", AgentToolGroup.Workspace, overridable: true),
+        Write(AgentToolNames.UpdateBox, "Updates a box's name, enabled state or folder.", AgentToolGroup.Workspace, overridable: true),
+        Destructive(AgentToolNames.DeleteBox, "Deletes a box.", AgentToolGroup.Workspace, overridable: true),
+
+        Read(AgentToolNames.ListBoxLinks, "Lists the public links of a box.", AgentToolGroup.Workspace, overridable: true),
+        Write(AgentToolNames.CreateBoxLink, "Creates a public link to a box.", AgentToolGroup.Workspace, overridable: true),
+        Write(AgentToolNames.UpdateBoxLink, "Updates a box link's name, enabled state, permissions or widget origins.", AgentToolGroup.Workspace, overridable: true),
+        Destructive(AgentToolNames.DeleteBoxLink, "Deletes a box link.", AgentToolGroup.Workspace, overridable: true),
+        Write(AgentToolNames.RegenerateBoxLinkAccessCode, "Regenerates a box link's access code, invalidating the old URL.", AgentToolGroup.Workspace, overridable: true),
+
+        Read(AgentToolNames.ListBoxMembers, "Lists the members of a box.", AgentToolGroup.Workspace, overridable: true),
+        // Inviting people grants humans access and sends emails, so it requires approval by default.
+        Invite(AgentToolNames.InviteBoxMembers, "Invites people by email to a box.", AgentToolGroup.Workspace, overridable: true),
+        Write(AgentToolNames.UpdateBoxMemberPermissions, "Updates a box member's permissions.", AgentToolGroup.Workspace, overridable: true),
+        Destructive(AgentToolNames.RevokeBoxMember, "Removes a member from a box.", AgentToolGroup.Workspace, overridable: true)
     ];
 
     private static readonly IReadOnlyDictionary<string, AgentToolDefinition> ByName =
@@ -128,7 +166,7 @@ public static class AgentToolCatalog
         AgentToolGroup group,
         bool overridable,
         bool enabledByDefault = true) =>
-        new(name, description, group, overridable, DefaultIsEnabled: enabledByDefault, DefaultRequiresApproval: false);
+        new(name, description, group, overridable, DefaultIsEnabled: enabledByDefault, DefaultRequiresApproval: false, Kind: AgentToolKind.Read);
 
     private static AgentToolDefinition Write(
         string name,
@@ -136,7 +174,7 @@ public static class AgentToolCatalog
         AgentToolGroup group,
         bool overridable,
         bool enabledByDefault = true) =>
-        new(name, description, group, overridable, DefaultIsEnabled: enabledByDefault, DefaultRequiresApproval: false);
+        new(name, description, group, overridable, DefaultIsEnabled: enabledByDefault, DefaultRequiresApproval: false, Kind: AgentToolKind.Write);
 
     private static AgentToolDefinition Destructive(
         string name,
@@ -144,5 +182,15 @@ public static class AgentToolCatalog
         AgentToolGroup group,
         bool overridable,
         bool enabledByDefault = true) =>
-        new(name, description, group, overridable, DefaultIsEnabled: enabledByDefault, DefaultRequiresApproval: true);
+        new(name, description, group, overridable, DefaultIsEnabled: enabledByDefault, DefaultRequiresApproval: true, Kind: AgentToolKind.Destructive);
+
+    // Inviting people is an outward-facing action — it grants humans access and sends email — so it
+    // mirrors Destructive in requiring approval by default, but reads as its own intent.
+    private static AgentToolDefinition Invite(
+        string name,
+        string description,
+        AgentToolGroup group,
+        bool overridable,
+        bool enabledByDefault = true) =>
+        new(name, description, group, overridable, DefaultIsEnabled: enabledByDefault, DefaultRequiresApproval: true, Kind: AgentToolKind.Invite);
 }

@@ -7,7 +7,7 @@ import { BulkDownloadItemDetail, GetBulkDownloadLinkOperationDetails } from '../
     standalone: true,
     imports: [],
     templateUrl: './get-bulk-download-link-operation-details.component.html',
-    styleUrl: './get-bulk-download-link-operation-details.component.scss'
+    styleUrl: '../_op-details.scss'
 })
 export class GetBulkDownloadLinkOperationDetailsComponent {
     details = input.required<GetBulkDownloadLinkOperationDetails>();

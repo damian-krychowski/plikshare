@@ -31,16 +31,34 @@ public class agent_tool_config_tests : TestFixture
         var result = await Api.Agents.GetTools(agent.ExternalId, AppOwner.Cookie);
 
         //then
-        result.Tools.Should().HaveCount(21);
+        result.Tools.Should().HaveCount(39);
+
+        // Inviting people grants humans access and sends email, so it requires approval by default.
+        var inviteWorkspaceMembers = result.Tools.Single(t => t.Name == "invite_workspace_members");
+        inviteWorkspaceMembers.IsEnabled.Should().BeTrue();
+        inviteWorkspaceMembers.RequiresApproval.Should().BeTrue();
+        inviteWorkspaceMembers.IsDefault.Should().BeTrue();
+        inviteWorkspaceMembers.Scope.Should().Be("workspace");
+        inviteWorkspaceMembers.Kind.Should().Be("invite");
+
+        var listWorkspaceMembers = result.Tools.Single(t => t.Name == "list_workspace_members");
+        listWorkspaceMembers.IsEnabled.Should().BeTrue();
+        listWorkspaceMembers.RequiresApproval.Should().BeFalse();
+        listWorkspaceMembers.Scope.Should().Be("workspace");
+
+        var revokeWorkspaceMember = result.Tools.Single(t => t.Name == "revoke_workspace_member");
+        revokeWorkspaceMember.RequiresApproval.Should().BeTrue();
 
         var bulkDelete = result.Tools.Single(t => t.Name == "bulk_delete");
         bulkDelete.IsEnabled.Should().BeTrue();
         bulkDelete.RequiresApproval.Should().BeTrue();
         bulkDelete.IsDefault.Should().BeTrue();
         bulkDelete.Scope.Should().Be("workspace");
+        bulkDelete.Kind.Should().Be("destructive");
 
         var createFile = result.Tools.Single(t => t.Name == "create_file");
         createFile.RequiresApproval.Should().BeFalse();
+        createFile.Kind.Should().Be("write");
 
         // create_workspace is the most privileged instance action — it stays disabled by default.
         var createWorkspace = result.Tools.Single(t => t.Name == "create_workspace");
@@ -51,6 +69,7 @@ public class agent_tool_config_tests : TestFixture
         var listWorkspaces = result.Tools.Single(t => t.Name == "list_workspaces");
         listWorkspaces.IsEnabled.Should().BeTrue();
         listWorkspaces.Scope.Should().Be("instance");
+        listWorkspaces.Kind.Should().Be("read");
     }
 
     [Fact]

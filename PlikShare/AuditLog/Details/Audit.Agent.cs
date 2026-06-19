@@ -282,6 +282,127 @@ public static partial class Audit
                 Count = count })
         };
 
+        public class WorkspaceMembersListed
+        {
+            public required string WorkspaceExternalId { get; init; }
+            public required int Count { get; init; }
+        }
+
+        public static AuditLogEntry WorkspaceMembersListedEntry(
+            AuditLogActorContext actor,
+            string workspaceExternalId,
+            int count) => new()
+        {
+            Actor = actor.Identity,
+            ActorEmail = actor.Email,
+            ActorIp = actor.Ip,
+            CorrelationId = actor.CorrelationId,
+            EventCategory = AuditLogEventCategories.Agent,
+            EventType = AuditLogEventTypes.Agent.WorkspaceMembersListed,
+            Severity = AuditLogSeverities.Info,
+            DetailsJson = Json.Serialize(new WorkspaceMembersListed {
+                WorkspaceExternalId = workspaceExternalId,
+                Count = count })
+        };
+
+        public class BoxesListed
+        {
+            public required string WorkspaceExternalId { get; init; }
+            public required int Count { get; init; }
+        }
+
+        public static AuditLogEntry BoxesListedEntry(
+            AuditLogActorContext actor,
+            string workspaceExternalId,
+            int count) => new()
+        {
+            Actor = actor.Identity,
+            ActorEmail = actor.Email,
+            ActorIp = actor.Ip,
+            CorrelationId = actor.CorrelationId,
+            EventCategory = AuditLogEventCategories.Agent,
+            EventType = AuditLogEventTypes.Agent.BoxesListed,
+            Severity = AuditLogSeverities.Info,
+            DetailsJson = Json.Serialize(new BoxesListed {
+                WorkspaceExternalId = workspaceExternalId,
+                Count = count })
+        };
+
+        public class BoxViewed
+        {
+            public required string WorkspaceExternalId { get; init; }
+            public required string BoxExternalId { get; init; }
+        }
+
+        public static AuditLogEntry BoxViewedEntry(
+            AuditLogActorContext actor,
+            string workspaceExternalId,
+            string boxExternalId) => new()
+        {
+            Actor = actor.Identity,
+            ActorEmail = actor.Email,
+            ActorIp = actor.Ip,
+            CorrelationId = actor.CorrelationId,
+            EventCategory = AuditLogEventCategories.Agent,
+            EventType = AuditLogEventTypes.Agent.BoxViewed,
+            Severity = AuditLogSeverities.Info,
+            DetailsJson = Json.Serialize(new BoxViewed {
+                WorkspaceExternalId = workspaceExternalId,
+                BoxExternalId = boxExternalId })
+        };
+
+        public class BoxLinksListed
+        {
+            public required string WorkspaceExternalId { get; init; }
+            public required string BoxExternalId { get; init; }
+            public required int Count { get; init; }
+        }
+
+        public static AuditLogEntry BoxLinksListedEntry(
+            AuditLogActorContext actor,
+            string workspaceExternalId,
+            string boxExternalId,
+            int count) => new()
+        {
+            Actor = actor.Identity,
+            ActorEmail = actor.Email,
+            ActorIp = actor.Ip,
+            CorrelationId = actor.CorrelationId,
+            EventCategory = AuditLogEventCategories.Agent,
+            EventType = AuditLogEventTypes.Agent.BoxLinksListed,
+            Severity = AuditLogSeverities.Info,
+            DetailsJson = Json.Serialize(new BoxLinksListed {
+                WorkspaceExternalId = workspaceExternalId,
+                BoxExternalId = boxExternalId,
+                Count = count })
+        };
+
+        public class BoxMembersListed
+        {
+            public required string WorkspaceExternalId { get; init; }
+            public required string BoxExternalId { get; init; }
+            public required int Count { get; init; }
+        }
+
+        public static AuditLogEntry BoxMembersListedEntry(
+            AuditLogActorContext actor,
+            string workspaceExternalId,
+            string boxExternalId,
+            int count) => new()
+        {
+            Actor = actor.Identity,
+            ActorEmail = actor.Email,
+            ActorIp = actor.Ip,
+            CorrelationId = actor.CorrelationId,
+            EventCategory = AuditLogEventCategories.Agent,
+            EventType = AuditLogEventTypes.Agent.BoxMembersListed,
+            Severity = AuditLogSeverities.Info,
+            DetailsJson = Json.Serialize(new BoxMembersListed {
+                WorkspaceExternalId = workspaceExternalId,
+                BoxExternalId = boxExternalId,
+                Count = count })
+        };
+
         public class ShareLinksListed
         {
             public required string WorkspaceExternalId { get; init; }

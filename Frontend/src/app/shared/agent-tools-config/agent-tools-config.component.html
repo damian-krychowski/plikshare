@@ -13,6 +13,9 @@
                     <div class="tool-row__info">
                         <div class="tool-row__name-line">
                             <span class="tool-row__name">{{ tool.name }}</span>
+                            @if (tool.kind === 'destructive') {
+                                <span class="tool-row__badge tool-row__badge--danger">destructive</span>
+                            }
                             @if (!tool.isDefault) {
                                 <span class="tool-row__badge tool-row__badge--custom">customised</span>
                             }
@@ -28,10 +31,15 @@
                             </mat-slide-toggle>
                         </label>
 
-                        <label class="tool-row__toggle">
+                        <label class="tool-row__toggle"
+                            [class.tool-row__toggle--muted]="!tool.isEnabled"
+                            matTooltip="Enable the tool to configure approval"
+                            [matTooltipDisabled]="tool.isEnabled">
                             <span>Approval</span>
                             <mat-slide-toggle
-                                [checked]="tool.requiresApproval"                                (change)="onToggleGlobalApproval(tool)">
+                                [checked]="tool.requiresApproval"
+                                [disabled]="!tool.isEnabled"
+                                (change)="onToggleGlobalApproval(tool)">
                             </mat-slide-toggle>
                         </label>
                     </div>
@@ -50,6 +58,9 @@
                     <div class="tool-row__info">
                         <div class="tool-row__name-line">
                             <span class="tool-row__name">{{ tool.name }}</span>
+                            @if (tool.kind === 'destructive') {
+                                <span class="tool-row__badge tool-row__badge--danger">destructive</span>
+                            }
                             @if (!tool.isDefault) {
                                 <span class="tool-row__badge tool-row__badge--custom">customised</span>
                             }
@@ -65,10 +76,15 @@
                             </mat-slide-toggle>
                         </label>
 
-                        <label class="tool-row__toggle">
+                        <label class="tool-row__toggle"
+                            [class.tool-row__toggle--muted]="!tool.isEnabled"
+                            matTooltip="Enable the tool to configure approval"
+                            [matTooltipDisabled]="tool.isEnabled">
                             <span>Approval</span>
                             <mat-slide-toggle
-                                [checked]="tool.requiresApproval"                                (change)="onToggleGlobalApproval(tool)">
+                                [checked]="tool.requiresApproval"
+                                [disabled]="!tool.isEnabled"
+                                (change)="onToggleGlobalApproval(tool)">
                             </mat-slide-toggle>
                         </label>
                     </div>

@@ -228,6 +228,11 @@ public static class AuditLogEventTypes
         public const string WorkspacesListed = "agent.workspaces-listed";
         public const string StoragesListed = "agent.storages-listed";
         public const string WorkspaceContentListed = "agent.workspace-content-listed";
+        public const string WorkspaceMembersListed = "agent.workspace-members-listed";
+        public const string BoxesListed = "agent.boxes-listed";
+        public const string BoxViewed = "agent.box-viewed";
+        public const string BoxLinksListed = "agent.box-links-listed";
+        public const string BoxMembersListed = "agent.box-members-listed";
         public const string ShareLinksListed = "agent.share-links-listed";
         public const string ShareLinkViewed = "agent.share-link-viewed";
         public const string FileViewed = "agent.file-viewed";
@@ -253,6 +258,11 @@ public static class AuditLogEventTypes
             WorkspacesListed,
             StoragesListed,
             WorkspaceContentListed,
+            WorkspaceMembersListed,
+            BoxesListed,
+            BoxViewed,
+            BoxLinksListed,
+            BoxMembersListed,
             ShareLinksListed,
             ShareLinkViewed,
             FileViewed,

@@ -42,9 +42,19 @@ public class GetAgentToolsQuery(AgentCache agentCache)
             Name = definition.Name,
             Description = definition.Description,
             Scope = definition.Group == AgentToolGroup.Workspace ? "workspace" : "instance",
+            Kind = ToKindString(definition.Kind),
             IsEnabled = effective.IsEnabled,
             RequiresApproval = effective.RequiresApproval,
             IsDefault = isDefault
         };
     }
+
+    private static string ToKindString(AgentToolKind kind) => kind switch
+    {
+        AgentToolKind.Read => "read",
+        AgentToolKind.Write => "write",
+        AgentToolKind.Destructive => "destructive",
+        AgentToolKind.Invite => "invite",
+        _ => "write"
+    };
 }

@@ -6,7 +6,7 @@ import { CreateFolderOperationDetails } from '../../../services/agents.api';
     standalone: true,
     imports: [],
     templateUrl: './create-folder-operation-details.component.html',
-    styleUrl: './create-folder-operation-details.component.scss'
+    styleUrl: '../_op-details.scss'
 })
 export class CreateFolderOperationDetailsComponent {
     details = input.required<CreateFolderOperationDetails>();

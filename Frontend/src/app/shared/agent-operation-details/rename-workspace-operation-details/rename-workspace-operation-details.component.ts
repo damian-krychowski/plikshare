@@ -6,7 +6,7 @@ import { RenameWorkspaceOperationDetails } from '../../../services/agents.api';
     standalone: true,
     imports: [],
     templateUrl: './rename-workspace-operation-details.component.html',
-    styleUrl: './rename-workspace-operation-details.component.scss'
+    styleUrl: '../_op-details.scss'
 })
 export class RenameWorkspaceOperationDetailsComponent {
     details = input.required<RenameWorkspaceOperationDetails>();

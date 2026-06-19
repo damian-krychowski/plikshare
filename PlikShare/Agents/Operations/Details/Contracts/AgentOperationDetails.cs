@@ -1,4 +1,18 @@
 using System.Text.Json.Serialization;
+using PlikShare.Mcp.Boxes.Create.Contracts;
+using PlikShare.Mcp.Boxes.Delete.Contracts;
+using PlikShare.Mcp.Boxes.Get.Contracts;
+using PlikShare.Mcp.Boxes.List.Contracts;
+using PlikShare.Mcp.Boxes.Members.Invite.Contracts;
+using PlikShare.Mcp.Boxes.Members.List.Contracts;
+using PlikShare.Mcp.Boxes.Members.Revoke.Contracts;
+using PlikShare.Mcp.Boxes.Members.UpdatePermissions.Contracts;
+using PlikShare.Mcp.Boxes.Update.Contracts;
+using PlikShare.Mcp.BoxLinks.Create.Contracts;
+using PlikShare.Mcp.BoxLinks.Delete.Contracts;
+using PlikShare.Mcp.BoxLinks.List.Contracts;
+using PlikShare.Mcp.BoxLinks.RegenerateAccessCode.Contracts;
+using PlikShare.Mcp.BoxLinks.Update.Contracts;
 using PlikShare.Mcp.BulkDelete.Contracts;
 using PlikShare.Mcp.Files.BulkDownloadLink.Contracts;
 using PlikShare.Mcp.Files.Create.Contracts;
@@ -19,6 +33,10 @@ using PlikShare.Mcp.Storages.List.Contracts;
 using PlikShare.Mcp.Workspaces.Content.Contracts;
 using PlikShare.Mcp.Workspaces.Create.Contracts;
 using PlikShare.Mcp.Workspaces.List.Contracts;
+using PlikShare.Mcp.Workspaces.Members.Invite.Contracts;
+using PlikShare.Mcp.Workspaces.Members.List.Contracts;
+using PlikShare.Mcp.Workspaces.Members.Revoke.Contracts;
+using PlikShare.Mcp.Workspaces.Members.UpdatePermissions.Contracts;
 using PlikShare.Mcp.Workspaces.Rename.Contracts;
 
 namespace PlikShare.Agents.Operations.Details.Contracts;
@@ -44,6 +62,24 @@ namespace PlikShare.Agents.Operations.Details.Contracts;
 [JsonDerivedType(derivedType: typeof(SearchOperationDetails), typeDiscriminator: SearchOperationDetails.TypeDiscriminator)]
 [JsonDerivedType(derivedType: typeof(ListWorkspaceContentOperationDetails), typeDiscriminator: ListWorkspaceContentOperationDetails.TypeDiscriminator)]
 [JsonDerivedType(derivedType: typeof(GetBulkDownloadLinkOperationDetails), typeDiscriminator: GetBulkDownloadLinkOperationDetails.TypeDiscriminator)]
+[JsonDerivedType(derivedType: typeof(ListWorkspaceMembersOperationDetails), typeDiscriminator: ListWorkspaceMembersOperationDetails.TypeDiscriminator)]
+[JsonDerivedType(derivedType: typeof(InviteWorkspaceMembersOperationDetails), typeDiscriminator: InviteWorkspaceMembersOperationDetails.TypeDiscriminator)]
+[JsonDerivedType(derivedType: typeof(UpdateWorkspaceMemberPermissionsOperationDetails), typeDiscriminator: UpdateWorkspaceMemberPermissionsOperationDetails.TypeDiscriminator)]
+[JsonDerivedType(derivedType: typeof(RevokeWorkspaceMemberOperationDetails), typeDiscriminator: RevokeWorkspaceMemberOperationDetails.TypeDiscriminator)]
+[JsonDerivedType(derivedType: typeof(ListBoxesOperationDetails), typeDiscriminator: ListBoxesOperationDetails.TypeDiscriminator)]
+[JsonDerivedType(derivedType: typeof(GetBoxOperationDetails), typeDiscriminator: GetBoxOperationDetails.TypeDiscriminator)]
+[JsonDerivedType(derivedType: typeof(CreateBoxOperationDetails), typeDiscriminator: CreateBoxOperationDetails.TypeDiscriminator)]
+[JsonDerivedType(derivedType: typeof(UpdateBoxOperationDetails), typeDiscriminator: UpdateBoxOperationDetails.TypeDiscriminator)]
+[JsonDerivedType(derivedType: typeof(DeleteBoxOperationDetails), typeDiscriminator: DeleteBoxOperationDetails.TypeDiscriminator)]
+[JsonDerivedType(derivedType: typeof(ListBoxLinksOperationDetails), typeDiscriminator: ListBoxLinksOperationDetails.TypeDiscriminator)]
+[JsonDerivedType(derivedType: typeof(CreateBoxLinkOperationDetails), typeDiscriminator: CreateBoxLinkOperationDetails.TypeDiscriminator)]
+[JsonDerivedType(derivedType: typeof(UpdateBoxLinkOperationDetails), typeDiscriminator: UpdateBoxLinkOperationDetails.TypeDiscriminator)]
+[JsonDerivedType(derivedType: typeof(DeleteBoxLinkOperationDetails), typeDiscriminator: DeleteBoxLinkOperationDetails.TypeDiscriminator)]
+[JsonDerivedType(derivedType: typeof(RegenerateBoxLinkAccessCodeOperationDetails), typeDiscriminator: RegenerateBoxLinkAccessCodeOperationDetails.TypeDiscriminator)]
+[JsonDerivedType(derivedType: typeof(ListBoxMembersOperationDetails), typeDiscriminator: ListBoxMembersOperationDetails.TypeDiscriminator)]
+[JsonDerivedType(derivedType: typeof(InviteBoxMembersOperationDetails), typeDiscriminator: InviteBoxMembersOperationDetails.TypeDiscriminator)]
+[JsonDerivedType(derivedType: typeof(UpdateBoxMemberPermissionsOperationDetails), typeDiscriminator: UpdateBoxMemberPermissionsOperationDetails.TypeDiscriminator)]
+[JsonDerivedType(derivedType: typeof(RevokeBoxMemberOperationDetails), typeDiscriminator: RevokeBoxMemberOperationDetails.TypeDiscriminator)]
 public abstract class AgentOperationDetails
 {
 }

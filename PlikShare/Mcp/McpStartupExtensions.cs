@@ -1,5 +1,19 @@
 using PlikShare.Antiforgery;
 using PlikShare.Core.Authorization;
+using PlikShare.Mcp.Boxes.Create;
+using PlikShare.Mcp.Boxes.Delete;
+using PlikShare.Mcp.Boxes.Get;
+using PlikShare.Mcp.Boxes.List;
+using PlikShare.Mcp.Boxes.Members.Invite;
+using PlikShare.Mcp.Boxes.Members.List;
+using PlikShare.Mcp.Boxes.Members.Revoke;
+using PlikShare.Mcp.Boxes.Members.UpdatePermissions;
+using PlikShare.Mcp.Boxes.Update;
+using PlikShare.Mcp.BoxLinks.Create;
+using PlikShare.Mcp.BoxLinks.Delete;
+using PlikShare.Mcp.BoxLinks.List;
+using PlikShare.Mcp.BoxLinks.RegenerateAccessCode;
+using PlikShare.Mcp.BoxLinks.Update;
 using PlikShare.Mcp.BulkDelete;
 using PlikShare.Mcp.Files;
 using PlikShare.Mcp.Files.BulkDownloadLink;
@@ -22,6 +36,10 @@ using PlikShare.Mcp.ShareLinks.Update;
 using PlikShare.Mcp.Workspaces.Content;
 using PlikShare.Mcp.Workspaces.Create;
 using PlikShare.Mcp.Workspaces.List;
+using PlikShare.Mcp.Workspaces.Members.Invite;
+using PlikShare.Mcp.Workspaces.Members.List;
+using PlikShare.Mcp.Workspaces.Members.Revoke;
+using PlikShare.Mcp.Workspaces.Members.UpdatePermissions;
 using PlikShare.Mcp.Workspaces.Rename;
 
 namespace PlikShare.Mcp;
@@ -53,6 +71,24 @@ public static class McpStartupExtensions
         builder.Services.AddSingleton<SearchAgentOperation>();
         builder.Services.AddSingleton<ListWorkspaceContentAgentOperation>();
         builder.Services.AddSingleton<GetBulkDownloadLinkAgentOperation>();
+        builder.Services.AddSingleton<ListWorkspaceMembersAgentOperation>();
+        builder.Services.AddSingleton<InviteWorkspaceMembersAgentOperation>();
+        builder.Services.AddSingleton<UpdateWorkspaceMemberPermissionsAgentOperation>();
+        builder.Services.AddSingleton<RevokeWorkspaceMemberAgentOperation>();
+        builder.Services.AddSingleton<ListBoxesAgentOperation>();
+        builder.Services.AddSingleton<GetBoxAgentOperation>();
+        builder.Services.AddSingleton<CreateBoxAgentOperation>();
+        builder.Services.AddSingleton<UpdateBoxAgentOperation>();
+        builder.Services.AddSingleton<DeleteBoxAgentOperation>();
+        builder.Services.AddSingleton<ListBoxLinksAgentOperation>();
+        builder.Services.AddSingleton<CreateBoxLinkAgentOperation>();
+        builder.Services.AddSingleton<UpdateBoxLinkAgentOperation>();
+        builder.Services.AddSingleton<DeleteBoxLinkAgentOperation>();
+        builder.Services.AddSingleton<RegenerateBoxLinkAccessCodeAgentOperation>();
+        builder.Services.AddSingleton<ListBoxMembersAgentOperation>();
+        builder.Services.AddSingleton<InviteBoxMembersAgentOperation>();
+        builder.Services.AddSingleton<UpdateBoxMemberPermissionsAgentOperation>();
+        builder.Services.AddSingleton<RevokeBoxMemberAgentOperation>();
         builder.Services.AddSingleton<AgentFileWorkspaceLocator>();
         builder.Services.AddSingleton<AgentSearchScopeResolver>();
         builder.Services.AddSingleton<AgentOperationDispatcher>();
@@ -78,6 +114,24 @@ public static class McpStartupExtensions
         builder.Services.AddSingleton<SearchOperationDetailsResolver>();
         builder.Services.AddSingleton<ListWorkspaceContentOperationDetailsResolver>();
         builder.Services.AddSingleton<GetBulkDownloadLinkOperationDetailsResolver>();
+        builder.Services.AddSingleton<ListWorkspaceMembersOperationDetailsResolver>();
+        builder.Services.AddSingleton<InviteWorkspaceMembersOperationDetailsResolver>();
+        builder.Services.AddSingleton<UpdateWorkspaceMemberPermissionsOperationDetailsResolver>();
+        builder.Services.AddSingleton<RevokeWorkspaceMemberOperationDetailsResolver>();
+        builder.Services.AddSingleton<ListBoxesOperationDetailsResolver>();
+        builder.Services.AddSingleton<GetBoxOperationDetailsResolver>();
+        builder.Services.AddSingleton<CreateBoxOperationDetailsResolver>();
+        builder.Services.AddSingleton<UpdateBoxOperationDetailsResolver>();
+        builder.Services.AddSingleton<DeleteBoxOperationDetailsResolver>();
+        builder.Services.AddSingleton<ListBoxLinksOperationDetailsResolver>();
+        builder.Services.AddSingleton<CreateBoxLinkOperationDetailsResolver>();
+        builder.Services.AddSingleton<UpdateBoxLinkOperationDetailsResolver>();
+        builder.Services.AddSingleton<DeleteBoxLinkOperationDetailsResolver>();
+        builder.Services.AddSingleton<RegenerateBoxLinkAccessCodeOperationDetailsResolver>();
+        builder.Services.AddSingleton<ListBoxMembersOperationDetailsResolver>();
+        builder.Services.AddSingleton<InviteBoxMembersOperationDetailsResolver>();
+        builder.Services.AddSingleton<UpdateBoxMemberPermissionsOperationDetailsResolver>();
+        builder.Services.AddSingleton<RevokeBoxMemberOperationDetailsResolver>();
 
         builder
             .Services
@@ -104,6 +158,24 @@ public static class McpStartupExtensions
             .WithTools<GetShareLinkTool>()
             .WithTools<UpdateShareLinkTool>()
             .WithTools<DeleteShareLinkTool>()
+            .WithTools<ListWorkspaceMembersTool>()
+            .WithTools<InviteWorkspaceMembersTool>()
+            .WithTools<UpdateWorkspaceMemberPermissionsTool>()
+            .WithTools<RevokeWorkspaceMemberTool>()
+            .WithTools<ListBoxesTool>()
+            .WithTools<GetBoxTool>()
+            .WithTools<CreateBoxTool>()
+            .WithTools<UpdateBoxTool>()
+            .WithTools<DeleteBoxTool>()
+            .WithTools<ListBoxLinksTool>()
+            .WithTools<CreateBoxLinkTool>()
+            .WithTools<UpdateBoxLinkTool>()
+            .WithTools<DeleteBoxLinkTool>()
+            .WithTools<RegenerateBoxLinkAccessCodeTool>()
+            .WithTools<ListBoxMembersTool>()
+            .WithTools<InviteBoxMembersTool>()
+            .WithTools<UpdateBoxMemberPermissionsTool>()
+            .WithTools<RevokeBoxMemberTool>()
             .WithTools<ExecuteOperationTool>()
             .WithTools<CheckApprovalsTool>();
     }

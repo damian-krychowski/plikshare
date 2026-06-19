@@ -33,6 +33,28 @@ public static class AgentToolNames
     public const string BulkDelete = "bulk_delete";
     public const string DeleteShareLink = "delete_share_link";
 
+    public const string ListWorkspaceMembers = "list_workspace_members";
+    public const string InviteWorkspaceMembers = "invite_workspace_members";
+    public const string UpdateWorkspaceMemberPermissions = "update_workspace_member_permissions";
+    public const string RevokeWorkspaceMember = "revoke_workspace_member";
+
+    public const string ListBoxes = "list_boxes";
+    public const string GetBox = "get_box";
+    public const string CreateBox = "create_box";
+    public const string UpdateBox = "update_box";
+    public const string DeleteBox = "delete_box";
+
+    public const string ListBoxLinks = "list_box_links";
+    public const string CreateBoxLink = "create_box_link";
+    public const string UpdateBoxLink = "update_box_link";
+    public const string DeleteBoxLink = "delete_box_link";
+    public const string RegenerateBoxLinkAccessCode = "regenerate_box_link_access_code";
+
+    public const string ListBoxMembers = "list_box_members";
+    public const string InviteBoxMembers = "invite_box_members";
+    public const string UpdateBoxMemberPermissions = "update_box_member_permissions";
+    public const string RevokeBoxMember = "revoke_box_member";
+
     public const string ExecuteOperation = "execute_operation";
     public const string CheckApprovals = "check_approvals";
 }

@@ -29,7 +29,7 @@ public static class PlikShareAgentSkill
                name: plikshare
                description: Manage files and folders in this PlikShare instance on behalf of users, using the PlikShare agent tools.
                metadata:
-                 version: 0.15.0
+                 version: 0.16.0
                allowed-tools: {{allowedTools}}
                ---
 
@@ -249,10 +249,79 @@ public static class PlikShareAgentSkill
                - `{{AgentToolNames.DeleteShareLink}}` (with `workspaceExternalId` and `shareLinkExternalId`) deletes a link;
                  its public URL stops working but the shared files and folders are left intact.
 
+               ## Workspace members
+
+               A workspace can be shared with people (identified by email). Manage its members with:
+
+               - `{{AgentToolNames.ListWorkspaceMembers}}` (with `workspaceExternalId`) lists the members, each with a
+                 `memberExternalId`, `email`, `inviterEmail`, whether they have accepted (`invitationAccepted`)
+                 and whether they may share the workspace (`allowShare`).
+               - `{{AgentToolNames.InviteWorkspaceMembers}}` (with `workspaceExternalId`, `memberEmails` and optional
+                 `allowShare`, default false) invites one or more people by email; each receives an invitation
+                 and gains access once they accept. `allowShare` lets them invite further members.
+               - `{{AgentToolNames.UpdateWorkspaceMemberPermissions}}` (with `workspaceExternalId`, `memberExternalId`,
+                 `allowShare`) changes a member's permissions.
+               - `{{AgentToolNames.RevokeWorkspaceMember}}` (with `workspaceExternalId`, `memberExternalId`) removes a
+                 member (or a pending invitation), revoking their access.
+
+               ## Boxes
+
+               A box is a curated, shareable view of one folder of a workspace. You expose a box to people
+               (box members) or anonymously through public box links, each with their own permissions. Manage
+               boxes with:
+
+               - `{{AgentToolNames.ListBoxes}}` (with `workspaceExternalId`) lists the boxes, each with a `boxExternalId`,
+                 `name`, `isEnabled` and the folder path it exposes.
+               - `{{AgentToolNames.GetBox}}` (with `workspaceExternalId`, `boxExternalId`) returns a box's details, how many
+                 members and links it has, and its immediate subfolders and files.
+               - `{{AgentToolNames.CreateBox}}` (with `workspaceExternalId`, `name`, `folderExternalId`) creates a box that
+                 exposes the given folder; returns the new `boxExternalId`.
+               - `{{AgentToolNames.UpdateBox}}` (with `workspaceExternalId`, `boxExternalId` and any of `name`, `isEnabled`,
+                 `folderExternalId`) updates a box; anything you leave out is kept.
+               - `{{AgentToolNames.DeleteBox}}` (with `workspaceExternalId`, `boxExternalId`) deletes a box together with its
+                 links and members; the underlying folder and files stay intact.
+
+               ## Box links
+
+               A box link is a public URL (plus an access code) that lets anyone interact with a box according
+               to the link's permissions. The permission flags are `allowDownload`, `allowUpload`, `allowList`,
+               `allowDeleteFile`, `allowRenameFile`, `allowMoveItems`, `allowCreateFolder`, `allowRenameFolder`
+               and `allowDeleteFolder`.
+
+               - `{{AgentToolNames.ListBoxLinks}}` (with `workspaceExternalId`, `boxExternalId`) lists a box's links with
+                 their external ids, names, enabled state, access codes, permissions and widget origins.
+               - `{{AgentToolNames.CreateBoxLink}}` (with `workspaceExternalId`, `boxExternalId`, `name`) creates a link;
+                 it starts with list-only permission. Returns the link's `externalId` and `accessCode`.
+               - `{{AgentToolNames.UpdateBoxLink}}` (with `workspaceExternalId`, `boxLinkExternalId` and any of `name`,
+                 `isEnabled`, the permission flags above, `widgetOrigins`) updates a link. Any permission flag
+                 you omit keeps its current value; pass an empty `widgetOrigins` list to clear it.
+               - `{{AgentToolNames.DeleteBoxLink}}` (with `workspaceExternalId`, `boxLinkExternalId`) deletes a link,
+                 immediately invalidating its URL. The box and its content stay intact.
+               - `{{AgentToolNames.RegenerateBoxLinkAccessCode}}` (with `workspaceExternalId`, `boxLinkExternalId`) issues a
+                 new access code, immediately invalidating the link's current URL. Returns the new `accessCode`.
+
+               ## Box members
+
+               A box can also be shared with named people (by email), each with their own box permissions (the
+               same nine flags listed under **Box links**).
+
+               - `{{AgentToolNames.ListBoxMembers}}` (with `workspaceExternalId`, `boxExternalId`) lists the members, each
+                 with a `memberExternalId`, `email`, `inviterEmail`, whether they have accepted and their
+                 permissions.
+               - `{{AgentToolNames.InviteBoxMembers}}` (with `workspaceExternalId`, `boxExternalId`, `memberEmails`) invites
+                 people by email; each gains list-only access once they accept. Use
+                 `{{AgentToolNames.UpdateBoxMemberPermissions}}` afterwards to grant more.
+               - `{{AgentToolNames.UpdateBoxMemberPermissions}}` (with `workspaceExternalId`, `boxExternalId`,
+                 `memberExternalId` and any of the permission flags) updates a member's permissions; any flag you
+                 omit keeps its current value.
+               - `{{AgentToolNames.RevokeBoxMember}}` (with `workspaceExternalId`, `boxExternalId`, `memberExternalId`)
+                 removes a member (or a pending invitation) from the box.
+
                ## Approvals
 
                Some operations can be configured to require a human's approval before they run — typically
-               destructive ones such as `{{AgentToolNames.BulkDelete}}` and `{{AgentToolNames.DeleteShareLink}}`. Whether a given tool needs
+               destructive ones such as `{{AgentToolNames.BulkDelete}}` and `{{AgentToolNames.DeleteShareLink}}`, or ones that grant
+               people access such as `{{AgentToolNames.InviteWorkspaceMembers}}` and `{{AgentToolNames.InviteBoxMembers}}`. Whether a given tool needs
                approval is decided per agent by an administrator, so the same tool may run immediately for
                one agent and need approval for another. You cannot tell in advance — react to what the
                tool returns.

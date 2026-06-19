@@ -7,7 +7,7 @@ import { BulkDeleteFileDetail, BulkDeleteFolderDetail, BulkDeleteOperationDetail
     standalone: true,
     imports: [],
     templateUrl: './bulk-delete-operation-details.component.html',
-    styleUrl: './bulk-delete-operation-details.component.scss'
+    styleUrl: '../_op-details.scss'
 })
 export class BulkDeleteOperationDetailsComponent {
     details = input.required<BulkDeleteOperationDetails>();

@@ -7,7 +7,7 @@ import { GetFileDownloadLinkOperationDetails } from '../../../services/agents.ap
     standalone: true,
     imports: [],
     templateUrl: './get-file-download-link-operation-details.component.html',
-    styleUrl: './get-file-download-link-operation-details.component.scss'
+    styleUrl: '../_op-details.scss'
 })
 export class GetFileDownloadLinkOperationDetailsComponent {
     details = input.required<GetFileDownloadLinkOperationDetails>();

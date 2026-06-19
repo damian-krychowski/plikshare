@@ -109,6 +109,14 @@
         border: 1px solid var(--company-grey-accent);
         color: var(--company-grey-font);
         background: white;
+
+        &--danger {
+            border-color: var(--company-danger);
+            color: var(--company-danger);
+            background: 
+            color-mix(in srgb, var(--company-danger) 20%, white);
+            font-weight: 700;
+        }
     }
 
     &__description {
@@ -135,6 +143,16 @@
         span {
             font-size: var(--company-small-font);
             color: var(--company-grey-font);
+        }
+    }
+
+    // Approval is meaningless while the tool is disabled — mute the label so it reads as inactive
+    // (Material already greys the disabled toggle itself).
+    &__toggle--muted {
+        cursor: not-allowed;
+
+        span {
+            opacity: 0.45;
         }
     }
 

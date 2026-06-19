@@ -8,7 +8,7 @@ import { CreateShareLinkOperationDetails, ShareLinkItemDetail } from '../../../s
     standalone: true,
     imports: [DatePipe],
     templateUrl: './create-share-link-operation-details.component.html',
-    styleUrl: './create-share-link-operation-details.component.scss'
+    styleUrl: '../_op-details.scss'
 })
 export class CreateShareLinkOperationDetailsComponent {
     details = input.required<CreateShareLinkOperationDetails>();

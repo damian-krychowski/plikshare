@@ -7,7 +7,7 @@ import { GetFileOperationDetails } from '../../../services/agents.api';
     standalone: true,
     imports: [],
     templateUrl: './get-file-operation-details.component.html',
-    styleUrl: './get-file-operation-details.component.scss'
+    styleUrl: '../_op-details.scss'
 })
 export class GetFileOperationDetailsComponent {
     details = input.required<GetFileOperationDetails>();

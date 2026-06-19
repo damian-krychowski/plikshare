@@ -53,6 +53,7 @@ export interface AgentToolConfig {
     name: string;
     description: string;
     scope: string;
+    kind: string;
     isEnabled: boolean;
     requiresApproval: boolean;
     isDefault: boolean;
@@ -184,7 +185,7 @@ export interface PendingAgentOperationWorkspace {
     name: string;
 }
 
-export type AgentOperationDetails = BulkDeleteOperationDetails | DeleteShareLinkOperationDetails | RenameFolderOperationDetails | RenameFileOperationDetails | CreateFolderOperationDetails | MoveItemsOperationDetails | CreateFileOperationDetails | RenameWorkspaceOperationDetails | CreateShareLinkOperationDetails | UpdateShareLinkOperationDetails | CreateWorkspaceOperationDetails | ReadFileOperationDetails | GetFileOperationDetails | GetFileDownloadLinkOperationDetails | ListWorkspacesOperationDetails | ListStoragesOperationDetails | ListShareLinksOperationDetails | GetShareLinkOperationDetails | SearchOperationDetails | ListWorkspaceContentOperationDetails | GetBulkDownloadLinkOperationDetails;
+export type AgentOperationDetails = BulkDeleteOperationDetails | DeleteShareLinkOperationDetails | RenameFolderOperationDetails | RenameFileOperationDetails | CreateFolderOperationDetails | MoveItemsOperationDetails | CreateFileOperationDetails | RenameWorkspaceOperationDetails | CreateShareLinkOperationDetails | UpdateShareLinkOperationDetails | CreateWorkspaceOperationDetails | ReadFileOperationDetails | GetFileOperationDetails | GetFileDownloadLinkOperationDetails | ListWorkspacesOperationDetails | ListStoragesOperationDetails | ListShareLinksOperationDetails | GetShareLinkOperationDetails | SearchOperationDetails | ListWorkspaceContentOperationDetails | GetBulkDownloadLinkOperationDetails | ListWorkspaceMembersOperationDetails | InviteWorkspaceMembersOperationDetails | UpdateWorkspaceMemberPermissionsOperationDetails | RevokeWorkspaceMemberOperationDetails | ListBoxesOperationDetails | GetBoxOperationDetails | CreateBoxOperationDetails | UpdateBoxOperationDetails | DeleteBoxOperationDetails | ListBoxLinksOperationDetails | CreateBoxLinkOperationDetails | UpdateBoxLinkOperationDetails | DeleteBoxLinkOperationDetails | RegenerateBoxLinkAccessCodeOperationDetails | ListBoxMembersOperationDetails | InviteBoxMembersOperationDetails | UpdateBoxMemberPermissionsOperationDetails | RevokeBoxMemberOperationDetails;
 
 export interface BulkDeleteOperationDetails {
     $type: 'bulk_delete';
@@ -356,6 +357,148 @@ export interface GetBulkDownloadLinkOperationDetails {
     excludedFolders: BulkDownloadItemDetail[];
     excludedFiles: BulkDownloadItemDetail[];
     expiresInMinutes: number | null;
+}
+
+export interface ListWorkspaceMembersOperationDetails {
+    $type: 'list_workspace_members';
+    workspaceExternalId: string;
+}
+
+export interface InviteWorkspaceMembersOperationDetails {
+    $type: 'invite_workspace_members';
+    workspaceExternalId: string;
+    workspaceName: string | null;
+    memberEmails: string[];
+    allowShare: boolean;
+}
+
+export interface UpdateWorkspaceMemberPermissionsOperationDetails {
+    $type: 'update_workspace_member_permissions';
+    workspaceExternalId: string;
+    workspaceName: string | null;
+    memberExternalId: string;
+    memberEmail: string | null;
+    allowShare: boolean;
+}
+
+export interface RevokeWorkspaceMemberOperationDetails {
+    $type: 'revoke_workspace_member';
+    workspaceExternalId: string;
+    workspaceName: string | null;
+    memberExternalId: string;
+    memberEmail: string | null;
+}
+
+export interface ListBoxesOperationDetails {
+    $type: 'list_boxes';
+    workspaceExternalId: string;
+}
+
+export interface GetBoxOperationDetails {
+    $type: 'get_box';
+    workspaceExternalId: string;
+    boxExternalId: string;
+}
+
+export interface CreateBoxOperationDetails {
+    $type: 'create_box';
+    workspaceExternalId: string;
+    workspaceName: string | null;
+    name: string;
+    folderExternalId: string;
+}
+
+export interface UpdateBoxOperationDetails {
+    $type: 'update_box';
+    workspaceExternalId: string;
+    boxExternalId: string;
+    currentName: string | null;
+    updateName: boolean;
+    newName: string | null;
+    updateIsEnabled: boolean;
+    isEnabled: boolean | null;
+    updateFolder: boolean;
+    folderExternalId: string | null;
+}
+
+export interface DeleteBoxOperationDetails {
+    $type: 'delete_box';
+    workspaceExternalId: string;
+    boxExternalId: string;
+    boxName: string | null;
+}
+
+export interface ListBoxLinksOperationDetails {
+    $type: 'list_box_links';
+    workspaceExternalId: string;
+    boxExternalId: string;
+}
+
+export interface CreateBoxLinkOperationDetails {
+    $type: 'create_box_link';
+    workspaceExternalId: string;
+    boxExternalId: string;
+    boxName: string | null;
+    name: string;
+}
+
+export interface UpdateBoxLinkOperationDetails {
+    $type: 'update_box_link';
+    workspaceExternalId: string;
+    boxLinkExternalId: string;
+    currentName: string | null;
+    updateName: boolean;
+    newName: string | null;
+    updateIsEnabled: boolean;
+    isEnabled: boolean | null;
+    updatePermissions: boolean;
+    updateWidgetOrigins: boolean;
+}
+
+export interface DeleteBoxLinkOperationDetails {
+    $type: 'delete_box_link';
+    workspaceExternalId: string;
+    boxLinkExternalId: string;
+    boxLinkName: string | null;
+}
+
+export interface RegenerateBoxLinkAccessCodeOperationDetails {
+    $type: 'regenerate_box_link_access_code';
+    workspaceExternalId: string;
+    boxLinkExternalId: string;
+    boxLinkName: string | null;
+}
+
+export interface ListBoxMembersOperationDetails {
+    $type: 'list_box_members';
+    workspaceExternalId: string;
+    boxExternalId: string;
+}
+
+export interface InviteBoxMembersOperationDetails {
+    $type: 'invite_box_members';
+    workspaceExternalId: string;
+    boxExternalId: string;
+    boxName: string | null;
+    memberEmails: string[];
+}
+
+export interface UpdateBoxMemberPermissionsOperationDetails {
+    $type: 'update_box_member_permissions';
+    workspaceExternalId: string;
+    boxExternalId: string;
+    boxName: string | null;
+    memberExternalId: string;
+    memberEmail: string | null;
+}
+
+export interface RevokeBoxMemberOperationDetails {
+    $type: 'revoke_box_member';
+    workspaceExternalId: string;
+    boxExternalId: string;
+    boxName: string | null;
+    memberExternalId: string;
+    memberEmail: string | null;
 }
 
 export interface BulkDownloadItemDetail {
