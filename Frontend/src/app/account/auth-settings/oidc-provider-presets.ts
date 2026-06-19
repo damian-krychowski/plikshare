@@ -29,7 +29,8 @@ export const OIDC_PROVIDER_PRESETS: Record<string, OidcProviderPreset> = {
             'Set <strong>Redirect URI</strong> (Web) to: <code>{redirectUri}</code>',
             'Go to Certificates & Secrets → <strong>New client secret</strong>',
             'Copy <strong>Application (client) ID</strong> and the <strong>secret value</strong>',
-            'Replace <code>{tenant-id}</code> in Issuer URL with your <strong>Directory (tenant) ID</strong>'
+            'Replace <code>{tenant-id}</code> in Issuer URL with your <strong>Directory (tenant) ID</strong>',
+            'Make sure users have an email: set the <strong>mail</strong> attribute or add the <strong>email</strong> optional claim (Token configuration → ID). If neither is set, the UPN (user@domain) is used as the email.'
         ]
     },
     'keycloak': {

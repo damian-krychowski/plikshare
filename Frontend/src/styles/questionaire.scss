@@ -166,6 +166,15 @@
         color: var(--company-grey-font);
     }
 
+    &__notice {
+        font-size: var(--company-small-font);
+        color: var(--company-grey-font);
+        line-height: 1.4;
+        padding: 0.75rem 1rem;
+        border: 1px solid var(--company-grey-accent);
+        border-radius: 8px;
+    }
+
     &__radio-group {
         display: flex;
         flex-direction: column;

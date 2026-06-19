@@ -13,6 +13,7 @@ import { CreateOidcProviderComponent } from "./create-oidc-provider/create-oidc-
 import { AuthProvidersApi } from "../../services/auth-providers.api";
 import { MatSlideToggleChange, MatSlideToggleModule } from "@angular/material/slide-toggle";
 import { OIDC_PROVIDER_PRESETS, OIDC_PRESET_ORDER } from "./oidc-provider-presets";
+import { ConfigCardComponent } from "../../shared/config-card/config-card.component";
 
 @Component({
     selector: 'app-auth-settings',
@@ -21,7 +22,8 @@ import { OIDC_PROVIDER_PRESETS, OIDC_PRESET_ORDER } from "./oidc-provider-preset
     MatTooltipModule,
     AuthProviderItemComponent,
     PresetButtonComponent,
-    MatSlideToggleModule
+    MatSlideToggleModule,
+    ConfigCardComponent
 ],
     templateUrl: './auth-settings.component.html',
     styleUrl: './auth-settings.component.scss'

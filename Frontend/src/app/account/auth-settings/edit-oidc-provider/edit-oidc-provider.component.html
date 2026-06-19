@@ -80,7 +80,17 @@
         </mat-form-field>
 
         @if(testFailed()) {
-            <mat-error>Configuration test failed: {{testError()}}</mat-error>
+            <mat-error>Connection test failed: {{testError()}}</mat-error>
+
+            <div class="mt-2"></div>
+
+            <div class="questionaire__notice">
+                This check can sometimes fail even when the configuration is correct - some providers (such as Microsoft Entra ID) don't expose enough through it to fully confirm the credentials. If you're confident the details are right, click <strong>Save</strong> and verify it with a real sign-in.
+            </div>
+        }
+
+        @if(testSucceeded()) {
+            <div class="questionaire__info">Connection test passed: {{testDetails()}}</div>
         }
 
         <div class="questionaire__actions">
@@ -91,12 +101,20 @@
                 Cancel
             </button>
 
+            <button type="button" class="questionaire__btn mr-1" mat-flat-button
+                [class.questionaire__btn--loading]="isLoading()"
+                aria-label="Test connection"
+                (click)="testConnection()"
+                [disabled]="isLoading()">
+                Test connection
+            </button>
+
             <button type="submit" class="questionaire__btn" mat-flat-button
                 [class.questionaire__btn--disabled]="configFormGroup.invalid"
                 [class.questionaire__btn--loading]="isLoading()"
-                aria-label="Test and save"
+                aria-label="Save"
                 [disabled]="isLoading()">
-                Test & Save
+                Save
             </button>
         </div>
     </form>

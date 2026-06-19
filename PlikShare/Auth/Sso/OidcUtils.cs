@@ -76,6 +76,17 @@ public static class OidcUtils
             var email = result.ClaimsIdentity.FindFirst(ClaimTypes.Email)?.Value
                 ?? result.ClaimsIdentity.FindFirst("email")?.Value;
 
+            if (string.IsNullOrEmpty(email))
+            {
+                // Entra ID often omits the email claim; preferred_username/upn carry the UPN,
+                // which is an email address for most tenants.
+                var candidate = result.ClaimsIdentity.FindFirst("preferred_username")?.Value
+                    ?? result.ClaimsIdentity.FindFirst("upn")?.Value;
+
+                if (candidate is not null && candidate.Contains('@'))
+                    email = candidate;
+            }
+
             var sub = result.ClaimsIdentity.FindFirst("sub")?.Value;
 
             return new IdTokenResult(Email: email, Sub: sub);

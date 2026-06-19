@@ -2,6 +2,12 @@
 
 Release notes for PlikShare.
 
+## 1.2.1
+
+- [FEATURE] Agent toolset (MCP) expanded to boxes and members - agents can now manage boxes end to end (list, read, create, update, delete), manage a box's public links (list, create, update, delete, and regenerate a link's access code), and manage both box members and workspace members (list, invite, update permissions, remove). As before, inviting people and destructive actions require approval by default and flow through the human-in-the-loop requests inbox, each with a preview tailored to the box, link settings or members involved
+- [FIX] SSO sign-in with Microsoft Entra ID failed with "Email address was not provided by the SSO provider" - Entra often omits the `email` claim (it's only emitted when the user has a `mail` attribute or the optional claim is configured). The callback now falls back to `preferred_username`/`upn` (the UPN, which is an email address for most tenants) when no email claim is returned
+- [IMPROVEMENT] Testing an SSO provider's configuration is now optional and no longer blocks creating or saving it - "Test connection" is a separate action that just reports its result, while Create/Save works regardless, so you can finish setup and verify it with a real sign-in. This matters because some providers (Entra in particular) can't be fully confirmed by a pre-save check; a note explains this when a test fails. The Microsoft preset now documents how the email is sourced, and the Password login section was reworked into a config card
+
 ## 1.2.0
 
 - [FEATURE] Agents — connect AI agents (e.g. Claude) to PlikShare over MCP. Create an agent, hand it a scoped API token (rotatable, shown only once at creation), and it can work only with the workspaces and boxes you explicitly grant it — its reach is your owned and shared workspaces, nothing more. Per-agent limits: how many workspaces it may create, the default size and team-member caps for those, and which storages it's allowed to use

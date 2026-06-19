@@ -37,6 +37,8 @@ export class CreateOidcProviderComponent {
 
     testFailed = signal(false);
     testError = signal('');
+    testSucceeded = signal(false);
+    testDetails = signal('');
 
     redirectUri = `${window.location.origin}/api/auth/sso/callback`;
     preset: OidcProviderPreset;
@@ -79,7 +81,44 @@ export class CreateOidcProviderComponent {
         this.dialogRef.close();
     }
 
-    async onSubmitConfiguration() {
+    async testConnection() {
+        if (this.issuerUrl.invalid || this.clientId.invalid || this.clientSecret.invalid) {
+            this.issuerUrl.markAsTouched();
+            this.clientId.markAsTouched();
+            this.clientSecret.markAsTouched();
+            return;
+        }
+
+        this.isLoading.set(true);
+        this.testFailed.set(false);
+        this.testError.set('');
+        this.testSucceeded.set(false);
+        this.testDetails.set('');
+
+        try {
+            const testResult = await this._authProvidersApi.testConfiguration({
+                issuerUrl: this.issuerUrl.value!,
+                clientId: this.clientId.value!,
+                clientSecret: this.clientSecret.value!
+            });
+
+            if (testResult.code === 'ok') {
+                this.testSucceeded.set(true);
+                this.testDetails.set(testResult.details);
+            } else {
+                this.testFailed.set(true);
+                this.testError.set(testResult.details);
+            }
+        } catch (e) {
+            this.testFailed.set(true);
+            this.testError.set('Could not run the connection test.');
+            console.error(e);
+        } finally {
+            this.isLoading.set(false);
+        }
+    }
+
+    async createProvider() {
         this.wasSubmitted.set(true);
 
         if (!this.configFormGroup.valid) {
@@ -87,24 +126,8 @@ export class CreateOidcProviderComponent {
         }
 
         this.isLoading.set(true);
-        this.testFailed.set(false);
-        this.testError.set('');
 
         try {
-            // Step 1: Test configuration
-            const testResult = await this._authProvidersApi.testConfiguration({
-                issuerUrl: this.issuerUrl.value!,
-                clientId: this.clientId.value!,
-                clientSecret: this.clientSecret.value!
-            });
-
-            if (testResult.code !== 'ok') {
-                this.testFailed.set(true);
-                this.testError.set(testResult.details);
-                return;
-            }
-
-            // Step 2: Create provider
             const result = await this._authProvidersApi.createOidcAuthProvider({
                 name: this.name.value!,
                 clientId: this.clientId.value!,
