@@ -1,3 +1,5 @@
+@use "./../../../../styles/variables.scss" as variables;
+
 .archive-box {
     border-top: 1px dashed var(--company-grey-accent);
     border-left: 1px dashed var(--company-grey-accent);
@@ -7,6 +9,22 @@
     &__header {
         padding: 1rem;
         border-bottom: 1px dashed var(--company-grey-accent);
+
+        > .flex-row {
+            flex-wrap: wrap;
+        }
+
+        @media (max-width: variables.$mobile-breakpoint) {
+            > .flex-row > .ml-auto {
+                flex-basis: 100%;
+                margin-left: 0;
+            }
+
+            .search-container {
+                flex: 1 1 auto;
+                min-width: 0;
+            }
+        }
     }
 
     &__content {
@@ -17,6 +35,10 @@
     &__file-name {
         font-weight: 500;
         font-size: 1.1rem;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
 }
 

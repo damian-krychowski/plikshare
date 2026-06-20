@@ -1,3 +1,5 @@
+@use "./../../../styles/variables.scss" as variables;
+
 @forward "./../../../styles/files-explorer-container.scss";
 @forward "./../../../styles/nothing-to-show.scss";
 @forward "./../../../styles/empty-state.scss";
@@ -38,6 +40,22 @@
     min-height: 100vh;
 
     padding-top: 1rem;
+
+    @media (max-width: variables.$mobile-breakpoint) {
+        padding-left: 0.75rem;
+        padding-right: 0.75rem;
+        padding-top: 0.75rem;
+    }
+}
+
+.files-explorer-container {
+    @media (max-width: variables.$mobile-breakpoint) {
+        border: none;
+        border-bottom: 1px solid var(--company-grey-accent);
+        padding-left: 0;
+        padding-right: 0;
+        padding-top: 0;
+    }
 }
 
 .powered-by {    

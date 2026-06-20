@@ -1,3 +1,5 @@
+@use "./../../../styles/variables.scss" as variables;
+
 @forward "./../../../styles/app-header.scss";
 @forward "./../../../styles/item-bar.scss";
 @forward "./../../../styles/drop-area.scss";
@@ -16,16 +18,39 @@
     &__header {
         padding: 1rem;
         border-bottom: 1px dashed var(--company-grey-accent);
+
+        > .flex-row {
+            flex-wrap: wrap;
+        }
+
+        .flex-column {
+            min-width: 0;
+        }
+
+        @media (max-width: variables.$mobile-breakpoint) {
+            > .flex-row > .ml-auto {
+                flex-basis: 100%;
+                margin-left: 0;
+            }
+
+            app-item-search {
+                flex: 1 1 auto;
+                min-width: 0;
+            }
+        }
     }
- 
+
     &__content {
         padding: 1rem 0.5rem 1rem 1rem;
         border-bottom: 1px dashed var(--company-grey-accent);
     }
- 
+
     &__file-name {
         font-weight: 500;
         font-size: 1.1rem;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
 
     &__subtitle {

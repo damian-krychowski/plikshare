@@ -69,6 +69,15 @@
 // media query), so other usages of <app-item-search> keep their original
 // look on every viewport.
 @media (max-width: variables.$mobile-breakpoint) {
+    :host.is-full-width-on-mobile {
+        display: block;
+
+        .search__input {
+            width: 100%;
+            min-width: 0;
+        }
+    }
+
     :host.is-mobile-collapsible {
         display: none;
     }

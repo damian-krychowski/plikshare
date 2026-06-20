@@ -1,3 +1,5 @@
+@use "./../../../styles/variables.scss" as variables;
+
 @forward "./../../../styles/files-explorer-container.scss";
 @forward "./../../../styles/nothing-to-show.scss";
 @forward "./../../../styles/empty-state.scss";
@@ -5,6 +7,16 @@
 :host {
     display: block;
     max-height: 100%;
+}
+
+.files-explorer-container {
+    @media (max-width: variables.$mobile-breakpoint) {
+        border: none;
+        border-bottom: 1px solid var(--company-grey-accent);
+        padding-left: 0.5rem;
+        padding-right: 0.5rem;
+        padding-top: 0.5rem;
+    }
 }
 
 .external-link-container {
@@ -19,4 +31,9 @@
     padding-top: 0.5rem;
     font-size: var(--company-medium-font);
     color: var(--company-grey-font);
+
+    @media (max-width: variables.$mobile-breakpoint) {
+        padding-left: 0.5rem;
+        padding-right: 0.5rem;
+    }
 }

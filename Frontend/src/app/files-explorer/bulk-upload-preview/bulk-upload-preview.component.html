@@ -41,7 +41,8 @@
                     <div class="ml-auto flex-row flex-gap-05 ">
                         @if(archiveVal.isOpened()) {
                             <app-item-search
-                                (searched)="archiveVal.searchPhrase.set($event)">                    
+                                [fullWidthOnMobile]="true"
+                                (searched)="archiveVal.searchPhrase.set($event)">
                             </app-item-search>
     
                             <app-action-btn

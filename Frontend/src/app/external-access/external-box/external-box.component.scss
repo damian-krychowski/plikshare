@@ -1,3 +1,5 @@
+@use "./../../../styles/variables.scss" as variables;
+
 @forward "./../../../styles/top-bar.scss";
 @forward "./../../../styles/covered.scss";
 @forward "./../../../styles/icon-merge.scss";
@@ -6,6 +8,22 @@
 @forward "./../../../styles/item-bar.scss";
 @forward "./../../../styles/nothing-to-show.scss";
 @forward "./../../../styles/empty-state.scss";
+
+.app-container {
+    @media (max-width: variables.$mobile-breakpoint) {
+        padding-left: 0.75rem;
+        padding-right: 0.75rem;
+    }
+}
+
+.files-explorer-container {
+    @media (max-width: variables.$mobile-breakpoint) {
+        border: none;
+        border-bottom: 1px solid var(--company-grey-accent);
+        padding-left: 0;
+        padding-right: 0;
+    }
+}
 
 .icon-danger {
     color: var(--company-danger);

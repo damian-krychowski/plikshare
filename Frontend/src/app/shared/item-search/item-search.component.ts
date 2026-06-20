@@ -15,7 +15,8 @@ export type ItemSearchCount = {
     styleUrls: ['./item-search.component.scss'],
     host: {
         '[class.is-mobile-collapsible]': 'collapsibleOnMobile()',
-        '[class.is-mobile-expanded]': 'isExpanded()'
+        '[class.is-mobile-expanded]': 'isExpanded()',
+        '[class.is-full-width-on-mobile]': 'fullWidthOnMobile()'
     }
 })
 export class ItemSearchComponent implements AfterViewInit {
@@ -29,6 +30,10 @@ export class ItemSearchComponent implements AfterViewInit {
     // the other toolbar actions). Desktop ignores both flags.
     collapsibleOnMobile = input(false);
     isExpanded = input(false);
+
+    // Opt-in: on mobile the input stretches to fill its host and may shrink
+    // below its natural width, so it never overflows a tight toolbar row.
+    fullWidthOnMobile = input(false);
 
     searched = output<string>();
     closed = output<void>();

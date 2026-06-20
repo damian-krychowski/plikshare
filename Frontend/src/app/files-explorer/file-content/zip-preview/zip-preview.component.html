@@ -19,6 +19,7 @@
 
                     <div class="search-container">
                         <app-item-search
+                            [fullWidthOnMobile]="true"
                             (searched)="zipSearchPhrase.set($event)">
                         </app-item-search>
 

@@ -9,8 +9,7 @@ import { AppFolderItem } from '../../shared/folder-item/folder-item.component';
 import { AppFileItem } from '../../shared/file-item/file-item.component';
 import { BulkCreateFolderRequest, CheckTextractJobsStatusRequest, ContentDisposition, CountSelectedItemsRequest, CreateFolderRequest, FilePreviewDetailsField, GetBulkDownloadLinkRequest, GetFolderResponse, SearchFilesTreeRequest, SendAiFileMessageRequest, StartTextractJobRequest, UpdateAiConversationNameRequest, UploadFileAttachmentRequest } from '../../services/folders-and-files.api';
 import { BulkInitiateFileUploadRequest } from '../../services/uploads.api';
-import { interval, Subscription } from 'rxjs';
-import { CheckFileLocksRequest, CheckFileLocksResponse } from '../../services/lock-status.api';
+import { BoxLinkFileLockService } from '../../services/box-link-file-lock.service';
 import { BOX_LINK_TOKEN_HEADER, BoxLinkTokenService } from '../../services/box-link-token.service';
 
 @Component({
@@ -51,7 +50,7 @@ export class BoxWidgetComponent implements OnInit, OnDestroy {
 
     public isBoxLoaded = signal(false);
 
-    private _fileLockService: BoxWidgetFileLockService;
+    private _fileLockService: BoxLinkFileLockService;
 
     constructor(
         private _boxLinkTokenService: BoxLinkTokenService,
@@ -62,9 +61,18 @@ export class BoxWidgetComponent implements OnInit, OnDestroy {
         this.filesApi = signal(this.getFilesExplorerApi());
         this.uploadsApi = signal(this.getFileUploadApi());
 
-        this._fileLockService = new BoxWidgetFileLockService(
-            this.url, 
-            this._boxWidgetApi);
+        this._fileLockService = new BoxLinkFileLockService(async externalIds => {
+            const url = this.url();
+
+            if (!url)
+                return [];
+
+            const response = await this._boxWidgetApi.checkFileLocks(
+                url, 
+                { externalIds });
+                
+            return response.lockedExternalIds;
+        });
     }
 
     async ngOnInit() {
@@ -464,82 +472,5 @@ export class BoxWidgetComponent implements OnInit, OnDestroy {
                 return undefined;
             }
         };
-    }
-}
-
-class BoxWidgetFileLockService {
-    private lockedFiles = signal<Set<string>>(new Set());
-    private subscriptions = new Map<string, AppFileItem>();
-    private pollingSubscription: Subscription | null = null;
-
-    constructor(
-        private _url: Signal<string>,
-        private _boxWidgetApi: BoxWidgetApi
-    ) {
-    }
-
-    subscribeToLockStatus(file: AppFileItem) {
-        if(!file.isLocked())
-            return;
-
-        const fileId = file.externalId;
-
-        if (!this.subscriptions.has(fileId)) {
-            this.subscriptions.set(fileId, file);
-
-            this.lockedFiles.update(files => {
-                files.add(fileId);
-                return files;
-            });
-        }
-    }
-
-    unsubscribe(fileId: string) {
-        this.subscriptions.delete(fileId);
-        this.lockedFiles.update(files => {
-            files.delete(fileId);
-            return files;
-        });
-    }
-
-    private async checkLockStatus() {
-        if (this.subscriptions.size === 0) return;
-
-        try {
-            const url = this._url();
-
-            if(!url)
-                return;
-
-            const fileIds = Array.from(this.subscriptions.keys());
-
-            const response = await this._boxWidgetApi.checkFileLocks(url, {
-                externalIds: fileIds
-            });
-
-            this.lockedFiles.set(new Set(response.lockedExternalIds));
-
-            // Update individual file items and unsubscribe unlocked files
-            this.subscriptions.forEach((file, id) => {
-                const isLocked = response.lockedExternalIds.includes(id);
-                file.isLocked.set(isLocked);
-                
-                // If file is no longer locked, remove it from subscriptions
-                if (!isLocked) {
-                    this.unsubscribe(id);
-                }
-            });
-        } catch (error) {
-            console.error('Failed to check lock status:', error);
-        }
-    }
-
-    startPolling(intervalMs: number = 1000) {
-        this.pollingSubscription = interval(intervalMs)
-            .subscribe(() => this.checkLockStatus());
-    }
-
-    stopPolling() {
-        this.pollingSubscription?.unsubscribe();
     }
 }

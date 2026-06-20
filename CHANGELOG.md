@@ -2,6 +2,12 @@
 
 Release notes for PlikShare.
 
+## 1.2.2
+
+- [FIX] Uploading through a public box link no longer redirects the visitor to the sign-in screen — lock-status now uses the box-link token
+- [IMPROVEMENT] Box-link and team-box pages go edge-to-edge on mobile — the frame border and side padding are replaced by a single full-width separator
+- [FIX] Archive header (ZIP and bulk-upload previews) no longer overflows horizontally on narrow screens — the search box and close button wrap to a new line together
+
 ## 1.2.1
 
 - [FEATURE] Agent toolset (MCP) expanded to boxes and members - agents can now manage boxes end to end (list, read, create, update, delete), manage a box's public links (list, create, update, delete, and regenerate a link's access code), and manage both box members and workspace members (list, invite, update permissions, remove). As before, inviting people and destructive actions require approval by default and flow through the human-in-the-loop requests inbox, each with a preview tailored to the box, link settings or members involved

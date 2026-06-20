@@ -21,6 +21,7 @@ import { getBulkDownloadLinkResponseDtoProtobuf } from "../../protobuf/get-bulk-
 import { getZipBulkDownloadLinkRequestDtoProtobuf } from "../../protobuf/get-zip-bulk-download-link-request-dto.protobuf";
 import { getZipBulkDownloadLinkResponseDtoProtobuf } from "../../protobuf/get-zip-bulk-download-link-response-dto.protobuf";
 import { BOX_LINK_TOKEN_HEADER, BoxLinkTokenService } from "../../services/box-link-token.service";
+import { CheckFileLocksRequest, CheckFileLocksResponse } from "../../services/lock-status.api";
 
 const zipFileDetailsDtoProtobuf = getZipFileDetailsDtoProtobuf();
 const folderContentDtoProtobuf = getFolderContentDtoProtobuf();
@@ -337,7 +338,17 @@ export class AccessCodesApi {
             responseProtoType: searchFilesTreeResponseDtoProtobuf,
             boxLinkToken: this._boxLinkTokenService.get()
         });
-        
+
         return result;
+    }
+
+    public checkFileLocks(accessCode: string, request: CheckFileLocksRequest): Promise<CheckFileLocksResponse> {
+        const call = this
+            ._http
+            .post<CheckFileLocksResponse>(`/api/access-codes/${accessCode}/lock-status/files`, request, {
+                headers: this.getHeaders()
+            });
+
+        return firstValueFrom(call);
     }
 }

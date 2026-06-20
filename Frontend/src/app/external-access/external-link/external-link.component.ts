@@ -14,7 +14,7 @@ import { AppFolderItem } from '../../shared/folder-item/folder-item.component';
 import { AppFileItem } from '../../shared/file-item/file-item.component';
 import { BulkCreateFolderRequest, CheckTextractJobsStatusRequest, ContentDisposition, CountSelectedItemsRequest, CreateFolderRequest, FilePreviewDetailsField, GetBulkDownloadLinkRequest, GetFolderResponse, SearchFilesTreeRequest, SendAiFileMessageRequest, StartTextractJobRequest, UpdateAiConversationNameRequest, UploadFileAttachmentRequest } from '../../services/folders-and-files.api';
 import { BulkInitiateFileUploadRequest } from '../../services/uploads.api';
-import { FileLockService } from '../../services/file-lock.service';
+import { BoxLinkFileLockService } from '../../services/box-link-file-lock.service';
 import { BOX_LINK_TOKEN_HEADER, BoxLinkTokenService } from '../../services/box-link-token.service';
 
 @Component({
@@ -63,6 +63,7 @@ export class ExternalLinkComponent implements OnInit, OnDestroy {
 
     public isBoxLoaded = signal(false);
     private _subscription: Subscription | null = null;
+    private _fileLockService: BoxLinkFileLockService;
 
     constructor(
         private _boxLinkTokenService: BoxLinkTokenService,
@@ -70,14 +71,28 @@ export class ExternalLinkComponent implements OnInit, OnDestroy {
         private _activatedRoute: ActivatedRoute,
         private _router: Router,
         private _sanitizer: DomSanitizer,
-        private _dataStore: DataStore,
-        private _fileLockService: FileLockService
-    ) { 
+        private _dataStore: DataStore
+    ) {
+        this._fileLockService = new BoxLinkFileLockService(async externalIds => {
+            const accessCode = this._accessCode;
+
+            if (!accessCode)
+                return [];
+
+            const response = await this._accessCodesApi.checkFileLocks(
+                accessCode, 
+                { externalIds });
+                
+            return response.lockedExternalIds;
+        });
+
         this.filesApi = signal(this.getFilesExplorerApi());
         this.uploadsApi = signal(this.getFileUploadApi());
     }
 
     async ngOnInit() {
+        this._fileLockService.startPolling();
+
         await this.handleNavigationChange(this._router.lastSuccessfulNavigation());
 
         this._subscription = this._router.events
@@ -171,6 +186,7 @@ export class ExternalLinkComponent implements OnInit, OnDestroy {
 
     ngOnDestroy(): void {
         this._subscription?.unsubscribe();
+        this._fileLockService.stopPolling();
     }
 
     public onFolderSelected(folder: AppFolderItem | null) {
