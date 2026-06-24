@@ -20,13 +20,13 @@ public class SearchTool
         "extensions=[\"jpg\",\"png\"] with nameContains=[\"invoice\"] matches items whose name contains " +
         "'invoice' AND whose extension is jpg OR png. Results are newest-first and paginated: when hasMore " +
         "is true, pass the returned nextCursor back as cursor to get the next page. " +
-        "Scope: workspaceIds and folderIds are optional — omit both to search every workspace the agent can " +
+        "Scope: workspaceIds and folderIds are optional - omit both to search every workspace the agent can " +
         "access; ids the agent cannot access are silently ignored. excludeWorkspaceIds and excludeFolderIds " +
         "remove those workspaces or folder subtrees from the results. extensions, contentTypes and size filters " +
         "apply to files only; combining them with types=[\"folder\"] is rejected. createdAfter/createdBefore " +
         "(ISO 8601) and sizeMin/sizeMax are range bounds, not lists. Each result carries its workspaceExternalId " +
         "and parent folderExternalId so you know where it lives. If this tool requires approval the call " +
-        "returns status 'waits_for_approval' with an approvalRequestId — poll check_approvals and, once " +
+        "returns status 'waits_for_approval' with an approvalRequestId - poll check_approvals and, once " +
         "approved, call execute_operation to run it.")]
     public static async Task<AgentToolResponse> Execute(
         IHttpContextAccessor httpContextAccessor,

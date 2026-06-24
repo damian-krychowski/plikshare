@@ -18,7 +18,7 @@ public class ExecuteOperationTool
     [Description("Runs an operation that was waiting for approval, once a human has approved it. Pass the " +
                  "approvalRequestId returned by the original tool call. Returns status 'executed' with the " +
                  "tool's result; or 'waits_for_approval' if not yet approved; or 'rejected' if it was denied, " +
-                 "expired or failed. Safe to call again — an already-executed operation returns its result " +
+                 "expired or failed. Safe to call again - an already-executed operation returns its result " +
                  "without running twice.")]
     public static async Task<AgentToolResponse> Execute(
         IHttpContextAccessor httpContextAccessor,

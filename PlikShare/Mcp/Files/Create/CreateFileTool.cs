@@ -19,7 +19,7 @@ public class CreateFileTool
                  "inline as UTF-8 text. Use it to save generated text artifacts (notes, reports, configs). " +
                  "The content must be UTF-8 text and at most 10 MB. The content type is derived from the file " +
                  "extension unless you pass contentType explicitly. If this tool requires approval the call " +
-                 "returns status 'waits_for_approval' with an approvalRequestId — poll check_approvals and, " +
+                 "returns status 'waits_for_approval' with an approvalRequestId - poll check_approvals and, " +
                  "once approved, call execute_operation to run it.")]
     public static async Task<AgentToolResponse> Execute(
         IHttpContextAccessor httpContextAccessor,

@@ -20,7 +20,7 @@ public class UpdateBoxMemberPermissionsTool
                  "allowMoveItems, allowCreateFolder, allowRenameFolder, allowDeleteFolder); any flag you omit " +
                  "keeps its current value. At least one flag must be given. Use list_box_members to find a " +
                  "member's external id. If this tool requires approval the call returns status " +
-                 "'waits_for_approval' with an approvalRequestId — poll check_approvals and, once approved, " +
+                 "'waits_for_approval' with an approvalRequestId - poll check_approvals and, once approved, " +
                  "call execute_operation to run it.")]
     public static async Task<AgentToolResponse> Execute(
         IHttpContextAccessor httpContextAccessor,

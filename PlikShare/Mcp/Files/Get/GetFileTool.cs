@@ -17,7 +17,7 @@ public class GetFileTool
                  "size, creation time and the folder path it lives in. The file is resolved across all " +
                  "workspaces the agent can access; if the agent has no access to it, the tool reports it as " +
                  "not found without revealing whether it exists. If this tool requires approval the call " +
-                 "returns status 'waits_for_approval' with an approvalRequestId — poll check_approvals and, " +
+                 "returns status 'waits_for_approval' with an approvalRequestId - poll check_approvals and, " +
                  "once approved, call execute_operation to run it.")]
     public static async Task<AgentToolResponse> Execute(
         IHttpContextAccessor httpContextAccessor,

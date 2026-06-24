@@ -17,7 +17,7 @@ public class ListBoxLinksTool
     [McpServerTool(Name = AgentToolNames.ListBoxLinks)]
     [Description("Lists the public links of a box in a workspace the agent can access, with their external " +
                  "ids, names, enabled state, access codes, permissions and widget origins. If this tool " +
-                 "requires approval the call returns status 'waits_for_approval' with an approvalRequestId — " +
+                 "requires approval the call returns status 'waits_for_approval' with an approvalRequestId - " +
                  "poll check_approvals and, once approved, call execute_operation to run it.")]
     public static async Task<AgentToolResponse> Execute(
         IHttpContextAccessor httpContextAccessor,

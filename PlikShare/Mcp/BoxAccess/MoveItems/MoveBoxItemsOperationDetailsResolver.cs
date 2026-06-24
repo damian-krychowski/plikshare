@@ -1,0 +1,67 @@
+using PlikShare.Agents.Operations;
+using PlikShare.AuditLog;
+using PlikShare.Core.Encryption;
+using PlikShare.Core.Utils;
+using PlikShare.Files.Id;
+using PlikShare.Folders.Id;
+using PlikShare.Mcp.BoxAccess.MoveItems.Contracts;
+
+namespace PlikShare.Mcp.BoxAccess.MoveItems;
+
+/// <summary>
+/// Resolves a move_box_items operation's stored ids into the box name and the names and paths of the
+/// folders and files being moved and the destination folder, so a human reviewing the approval sees
+/// exactly what gets moved and where.
+/// </summary>
+public class MoveBoxItemsOperationDetailsResolver(
+    BoxApprovalNameResolver boxNameResolver,
+    AuditLogService auditLogService)
+{
+    public MoveBoxItemsOperationDetails Resolve(AgentOperation operation)
+    {
+        var parameters = Json.Deserialize<MoveBoxItemsParams>(operation.ParamsJson)
+            ?? throw new InvalidOperationException("The stored operation parameters were invalid.");
+
+        var destination = string.IsNullOrWhiteSpace(parameters.DestinationFolderExternalId)
+            ? (FolderExtId?)null
+            : FolderExtId.Parse(parameters.DestinationFolderExternalId);
+
+        var context = auditLogService.GetItemsMovedContext(
+            destinationFolderExternalId: destination,
+            folderExternalIds: parameters.FolderExternalIds.Select(FolderExtId.Parse).ToList(),
+            fileExternalIds: parameters.FileExternalIds.Select(FileExtId.Parse).ToList(),
+            fileUploadExternalIds: []);
+
+        return new MoveBoxItemsOperationDetails
+        {
+            BoxExternalId = parameters.BoxExternalId,
+            BoxName = boxNameResolver.GetBoxName(parameters.BoxExternalId),
+            DestinationFolderExternalId = parameters.DestinationFolderExternalId,
+            DestinationName = context.DestinationFolder?.Name.Encoded,
+            DestinationPath = BuildPath(context.DestinationFolder?.FolderPath),
+
+            Folders = context.Folders
+                .Select(folder => new MoveBoxItemsOperationDetails.ItemToMove
+                {
+                    ExternalId = folder.ExternalId.Value,
+                    Name = folder.Name.Encoded,
+                    Path = BuildPath(folder.FolderPath)
+                })
+                .ToList(),
+
+            Files = context.Files
+                .Select(file => new MoveBoxItemsOperationDetails.ItemToMove
+                {
+                    ExternalId = file.ExternalId.Value,
+                    Name = $"{file.Name.Encoded}{file.Extension.Encoded}",
+                    Path = BuildPath(file.FolderPath)
+                })
+                .ToList()
+        };
+    }
+
+    private static string? BuildPath(List<EncodedMetadataValue>? path) =>
+        path is null or { Count: 0 }
+            ? null
+            : string.Join(" / ", path.Select(segment => segment.Encoded));
+}

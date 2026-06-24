@@ -18,7 +18,7 @@ public class ListBoxMembersTool
     [Description("Lists the members of a box in a workspace the agent can access, with their external ids, " +
                  "emails, who invited them, whether they have accepted the invitation and their permissions. " +
                  "If this tool requires approval the call returns status 'waits_for_approval' with an " +
-                 "approvalRequestId — poll check_approvals and, once approved, call execute_operation to run it.")]
+                 "approvalRequestId - poll check_approvals and, once approved, call execute_operation to run it.")]
     public static async Task<AgentToolResponse> Execute(
         IHttpContextAccessor httpContextAccessor,
         WorkspaceAgentMembershipCache workspaceAgentMembershipCache,

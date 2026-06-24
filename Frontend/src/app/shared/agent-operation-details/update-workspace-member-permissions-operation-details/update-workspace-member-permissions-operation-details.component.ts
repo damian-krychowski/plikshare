@@ -9,7 +9,7 @@ import { UpdateWorkspaceMemberPermissionsOperationDetails } from '../../../servi
     template: `
         @if(details().memberEmail) {
             <div class="op-details__section-title">
-                Workspace member — permissions
+                Workspace member - permissions
             </div>
 
             <div class="op-details__meta">

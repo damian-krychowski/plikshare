@@ -19,7 +19,7 @@ public class CreateBoxTool
                  "that can be shared with people (members) or via public box links. Provide the workspace " +
                  "id, a name and the external id of the folder the box exposes. Returns the box's external " +
                  "id. If this tool requires approval the call returns status 'waits_for_approval' with an " +
-                 "approvalRequestId — poll check_approvals and, once approved, call execute_operation to run it.")]
+                 "approvalRequestId - poll check_approvals and, once approved, call execute_operation to run it.")]
     public static async Task<AgentToolResponse> Execute(
         IHttpContextAccessor httpContextAccessor,
         WorkspaceAgentMembershipCache workspaceAgentMembershipCache,

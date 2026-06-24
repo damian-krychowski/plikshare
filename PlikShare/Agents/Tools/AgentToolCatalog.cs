@@ -4,14 +4,17 @@ namespace PlikShare.Agents.Tools;
 
 /// <summary>
 /// How a tool is grouped in the configuration UI. <see cref="Instance"/> tools act at the
-/// instance level (listing/creating workspaces); <see cref="Workspace"/> tools act on the
-/// content of workspaces. This is a display concern only — whether a tool can be overridden
-/// per workspace is a separate flag (<see cref="AgentToolDefinition.IsWorkspaceOverridable"/>).
+/// instance level (listing/creating workspaces, listing boxes shared with the agent); <see cref="Workspace"/>
+/// tools act on the content of workspaces; <see cref="Box"/> tools act inside a single box the agent was
+/// granted direct access to. This is a display concern only — whether a tool can be overridden per workspace
+/// or per box is a separate flag (<see cref="AgentToolDefinition.IsWorkspaceOverridable"/> /
+/// <see cref="AgentToolDefinition.IsBoxOverridable"/>).
 /// </summary>
 public enum AgentToolGroup
 {
     Instance = 0,
-    Workspace = 1
+    Workspace = 1,
+    Box = 2
 }
 
 /// <summary>
@@ -40,7 +43,14 @@ public sealed record AgentToolDefinition(
     bool IsWorkspaceOverridable,
     bool DefaultIsEnabled,
     bool DefaultRequiresApproval,
-    AgentToolKind Kind);
+    AgentToolKind Kind)
+{
+    /// <summary>
+    /// A box-scoped tool carries a per-box override (and only a per-box one) — these are the tools an agent
+    /// uses inside a box it was granted direct access to. Workspace and instance tools are never box-overridable.
+    /// </summary>
+    public bool IsBoxOverridable => Group == AgentToolGroup.Box;
+}
 
 /// <summary>
 /// A partial override at a single cascade level (workspace or box). A null dimension means "inherit
@@ -102,7 +112,7 @@ public static class AgentToolCatalog
         Write(AgentToolNames.UpdateWorkspaceMemberPermissions, "Updates a workspace member's permissions.", AgentToolGroup.Workspace, overridable: true),
         Destructive(AgentToolNames.RevokeWorkspaceMember, "Removes a member from a workspace.", AgentToolGroup.Workspace, overridable: true),
 
-        Read(AgentToolNames.ListBoxes, "Lists the boxes of a workspace.", AgentToolGroup.Workspace, overridable: true),
+        Read(AgentToolNames.ListWorkspaceBoxes, "Lists the boxes of a workspace.", AgentToolGroup.Workspace, overridable: true),
         Read(AgentToolNames.GetBox, "Reads the details of a single box.", AgentToolGroup.Workspace, overridable: true),
         Write(AgentToolNames.CreateBox, "Creates a box in a workspace.", AgentToolGroup.Workspace, overridable: true),
         Write(AgentToolNames.UpdateBox, "Updates a box's name, enabled state or folder.", AgentToolGroup.Workspace, overridable: true),
@@ -118,7 +128,26 @@ public static class AgentToolCatalog
         // Inviting people grants humans access and sends emails, so it requires approval by default.
         Invite(AgentToolNames.InviteBoxMembers, "Invites people by email to a box.", AgentToolGroup.Workspace, overridable: true),
         Write(AgentToolNames.UpdateBoxMemberPermissions, "Updates a box member's permissions.", AgentToolGroup.Workspace, overridable: true),
-        Destructive(AgentToolNames.RevokeBoxMember, "Removes a member from a box.", AgentToolGroup.Workspace, overridable: true)
+        Destructive(AgentToolNames.RevokeBoxMember, "Removes a member from a box.", AgentToolGroup.Workspace, overridable: true),
+
+        // Box-access tools — the agent acts as a consumer inside a box it was granted direct access to
+        // (ba_box_agents), scoped to the box's exposed folder. They carry per-box overrides only (never a
+        // per-workspace one); list_boxes is the instance-level discovery entry that mirrors list_workspaces.
+        Read(AgentToolNames.ListBoxes, "Lists the boxes shared directly with the agent.", AgentToolGroup.Instance, overridable: false),
+        Read(AgentToolNames.GetBoxDetails, "Reads a box's details — its name, enabled state and the root folder it exposes.", AgentToolGroup.Box, overridable: false),
+        Read(AgentToolNames.ListBoxContent, "Lists the folders and files inside a box, or one of its folders.", AgentToolGroup.Box, overridable: false),
+        Read(AgentToolNames.ReadBoxFile, "Reads the text content of a file inside a box.", AgentToolGroup.Box, overridable: false),
+        Read(AgentToolNames.GetBoxFileDownloadLink, "Creates a short-lived link to download a single file from a box.", AgentToolGroup.Box, overridable: false),
+        Read(AgentToolNames.GetBoxBulkDownloadLink, "Creates a link to download several files or folders from a box as one ZIP archive.", AgentToolGroup.Box, overridable: false),
+        Read(AgentToolNames.SearchBox, "Searches for files and folders inside a box.", AgentToolGroup.Box, overridable: false),
+
+        Write(AgentToolNames.CreateBoxFolder, "Creates a new folder inside a box.", AgentToolGroup.Box, overridable: false),
+        Write(AgentToolNames.CreateBoxFile, "Creates a new text file inside a box.", AgentToolGroup.Box, overridable: false),
+        Write(AgentToolNames.RenameBoxFile, "Renames a file inside a box, keeping its extension.", AgentToolGroup.Box, overridable: false),
+        Write(AgentToolNames.RenameBoxFolder, "Renames a folder inside a box.", AgentToolGroup.Box, overridable: false),
+        Write(AgentToolNames.MoveBoxItems, "Moves files and folders into another folder inside a box.", AgentToolGroup.Box, overridable: false),
+
+        Destructive(AgentToolNames.DeleteBoxItems, "Deletes files and/or folders inside a box, including whole folder trees.", AgentToolGroup.Box, overridable: false)
     ];
 
     private static readonly IReadOnlyDictionary<string, AgentToolDefinition> ByName =

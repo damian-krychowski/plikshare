@@ -18,7 +18,7 @@ public class DeleteBoxLinkTool
     [Description("Deletes a box link in a workspace the agent can access, immediately invalidating its URL. " +
                  "The box and its content stay intact. Use list_box_links to find a link's external id. If " +
                  "this tool requires approval the call returns status 'waits_for_approval' with an " +
-                 "approvalRequestId — poll check_approvals and, once approved, call execute_operation to run it.")]
+                 "approvalRequestId - poll check_approvals and, once approved, call execute_operation to run it.")]
     public static async Task<AgentToolResponse> Execute(
         IHttpContextAccessor httpContextAccessor,
         WorkspaceAgentMembershipCache workspaceAgentMembershipCache,

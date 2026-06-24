@@ -9,7 +9,7 @@ import { UpdateBoxMemberPermissionsOperationDetails } from '../../../services/ag
     template: `
         @if(details().memberEmail) {
             <div class="op-details__section-title">
-                Box member — permissions
+                Box member - permissions
             </div>
 
             <div class="op-details__meta">

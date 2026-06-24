@@ -1,13 +1,18 @@
 using ModelContextProtocol;
+using PlikShare.Agents.BoxAccess;
+using PlikShare.Agents.Cache;
 using PlikShare.Agents.Middleware;
 using PlikShare.Boxes.Cache;
 using PlikShare.Boxes.Id;
+using PlikShare.Boxes.Permissions;
 using PlikShare.BoxLinks.Cache;
 using PlikShare.BoxLinks.Id;
+using PlikShare.Core.UserIdentity;
 using PlikShare.Storages.Encryption;
 using PlikShare.Users.Id;
 using PlikShare.Workspaces.Cache;
 using PlikShare.Workspaces.Id;
+using BoxAccessContext = PlikShare.BoxExternalAccess.Authorization.BoxAccess;
 
 namespace PlikShare.Mcp;
 
@@ -102,6 +107,43 @@ public static class McpAgentContextExtensions
                 $"Workspace '{workspaceExternalId}' was not found or is not accessible to this agent.");
 
         return membership;
+    }
+
+    /// <summary>
+    /// Resolves a box the agent was granted direct access to (a <c>ba_box_agents</c> row), as a
+    /// <see cref="BoxAccess"/> the box-external-access queries already understand. The agent acts as a
+    /// consumer scoped to the box's exposed folder, so its identity is an <see cref="AgentIdentity"/> and
+    /// — unlike a human member — it is not constrained by per-box permission flags (the tool layer governs
+    /// what it may do), hence <see cref="BoxPermissions.Full"/>. Throws an <see cref="McpException"/> when
+    /// the box does not exist, is being deleted, sits in a full-encryption workspace, or is not shared with
+    /// this agent. Callers that mutate or list content must additionally honour <see cref="BoxAccess.IsOff"/>.
+    /// </summary>
+    public static async Task<BoxAccessContext> GetAgentBoxAccess(
+        this HttpContext httpContext,
+        AgentContext agent,
+        BoxCache boxCache,
+        AgentBoxAccessCache boxAccessCache,
+        BoxExtId boxExternalId,
+        CancellationToken cancellationToken)
+    {
+        var box = await boxCache.TryGetBox(
+            boxExternalId,
+            cancellationToken);
+
+        if (box is null || box.IsBeingDeleted || !await boxAccessCache.HasAccess(agent.Id, box.Id, cancellationToken))
+            throw new McpException(
+                $"Box '{boxExternalId}' was not found or is not accessible to this agent.");
+
+        box.Workspace.ThrowIfFullyEncrypted();
+
+        return new BoxAccessContext(
+            IsEnabled: box.IsEnabled,
+            Box: box,
+            BoxLink: null,
+            Permissions: BoxPermissions.Full(),
+            UserIdentity: new AgentIdentity(agent.ExternalId),
+            UserEmail: null,
+            UserIp: httpContext.Connection.RemoteIpAddress?.ToString());
     }
 
     public static void ThrowIfFullyEncrypted(this WorkspaceContext workspace)

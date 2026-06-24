@@ -19,7 +19,7 @@ public class InviteWorkspaceMembersTool
                  "receives an email invitation and gains access once they accept. Set allowShare to let " +
                  "the invitees invite further members and manage permissions themselves (default false). " +
                  "Returns the invited members with their external ids. If this tool requires approval the " +
-                 "call returns status 'waits_for_approval' with an approvalRequestId — poll check_approvals " +
+                 "call returns status 'waits_for_approval' with an approvalRequestId - poll check_approvals " +
                  "and, once approved, call execute_operation to run it.")]
     public static async Task<AgentToolResponse> Execute(
         IHttpContextAccessor httpContextAccessor,

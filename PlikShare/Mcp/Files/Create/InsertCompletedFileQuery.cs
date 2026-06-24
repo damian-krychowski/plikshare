@@ -111,7 +111,7 @@ public class InsertCompletedFileQuery(
         catch (SqliteException ex) when (ex.HasForeignKeyFailed())
         {
             Log.Warning(
-                "Could not create file '{FileExternalId}' in workspace '{WorkspaceExternalId}' — target folder not found.",
+                "Could not create file '{FileExternalId}' in workspace '{WorkspaceExternalId}' - target folder not found.",
                 file.ExternalId,
                 workspace.ExternalId);
 

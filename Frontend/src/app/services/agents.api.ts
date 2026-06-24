@@ -185,7 +185,7 @@ export interface PendingAgentOperationWorkspace {
     name: string;
 }
 
-export type AgentOperationDetails = BulkDeleteOperationDetails | DeleteShareLinkOperationDetails | RenameFolderOperationDetails | RenameFileOperationDetails | CreateFolderOperationDetails | MoveItemsOperationDetails | CreateFileOperationDetails | RenameWorkspaceOperationDetails | CreateShareLinkOperationDetails | UpdateShareLinkOperationDetails | CreateWorkspaceOperationDetails | ReadFileOperationDetails | GetFileOperationDetails | GetFileDownloadLinkOperationDetails | ListWorkspacesOperationDetails | ListStoragesOperationDetails | ListShareLinksOperationDetails | GetShareLinkOperationDetails | SearchOperationDetails | ListWorkspaceContentOperationDetails | GetBulkDownloadLinkOperationDetails | ListWorkspaceMembersOperationDetails | InviteWorkspaceMembersOperationDetails | UpdateWorkspaceMemberPermissionsOperationDetails | RevokeWorkspaceMemberOperationDetails | ListBoxesOperationDetails | GetBoxOperationDetails | CreateBoxOperationDetails | UpdateBoxOperationDetails | DeleteBoxOperationDetails | ListBoxLinksOperationDetails | CreateBoxLinkOperationDetails | UpdateBoxLinkOperationDetails | DeleteBoxLinkOperationDetails | RegenerateBoxLinkAccessCodeOperationDetails | ListBoxMembersOperationDetails | InviteBoxMembersOperationDetails | UpdateBoxMemberPermissionsOperationDetails | RevokeBoxMemberOperationDetails;
+export type AgentOperationDetails = BulkDeleteOperationDetails | DeleteShareLinkOperationDetails | RenameFolderOperationDetails | RenameFileOperationDetails | CreateFolderOperationDetails | MoveItemsOperationDetails | CreateFileOperationDetails | RenameWorkspaceOperationDetails | CreateShareLinkOperationDetails | UpdateShareLinkOperationDetails | CreateWorkspaceOperationDetails | ReadFileOperationDetails | GetFileOperationDetails | GetFileDownloadLinkOperationDetails | ListWorkspacesOperationDetails | ListStoragesOperationDetails | ListShareLinksOperationDetails | GetShareLinkOperationDetails | SearchOperationDetails | ListWorkspaceContentOperationDetails | GetBulkDownloadLinkOperationDetails | ListWorkspaceMembersOperationDetails | InviteWorkspaceMembersOperationDetails | UpdateWorkspaceMemberPermissionsOperationDetails | RevokeWorkspaceMemberOperationDetails | ListWorkspaceBoxesOperationDetails | ListBoxesOperationDetails | GetBoxDetailsOperationDetails | ListBoxContentOperationDetails | ReadBoxFileOperationDetails | GetBoxFileDownloadLinkOperationDetails | GetBoxBulkDownloadLinkOperationDetails | SearchBoxOperationDetails | CreateBoxFolderOperationDetails | CreateBoxFileOperationDetails | RenameBoxFileOperationDetails | RenameBoxFolderOperationDetails | MoveBoxItemsOperationDetails | DeleteBoxItemsOperationDetails | GetBoxOperationDetails |CreateBoxOperationDetails | UpdateBoxOperationDetails | DeleteBoxOperationDetails | ListBoxLinksOperationDetails | CreateBoxLinkOperationDetails | UpdateBoxLinkOperationDetails | DeleteBoxLinkOperationDetails | RegenerateBoxLinkAccessCodeOperationDetails | ListBoxMembersOperationDetails | InviteBoxMembersOperationDetails | UpdateBoxMemberPermissionsOperationDetails | RevokeBoxMemberOperationDetails;
 
 export interface BulkDeleteOperationDetails {
     $type: 'bulk_delete';
@@ -389,9 +389,129 @@ export interface RevokeWorkspaceMemberOperationDetails {
     memberEmail: string | null;
 }
 
+export interface ListWorkspaceBoxesOperationDetails {
+    $type: 'list_workspace_boxes';
+    workspaceExternalId: string;
+}
+
 export interface ListBoxesOperationDetails {
     $type: 'list_boxes';
-    workspaceExternalId: string;
+}
+
+export interface GetBoxDetailsOperationDetails {
+    $type: 'get_box_details';
+    boxExternalId: string;
+    boxName: string | null;
+}
+
+export interface ListBoxContentOperationDetails {
+    $type: 'list_box_content';
+    boxExternalId: string;
+    boxName: string | null;
+    folderExternalId: string | null;
+    folderName: string | null;
+}
+
+export interface ReadBoxFileOperationDetails {
+    $type: 'read_box_file';
+    boxExternalId: string;
+    boxName: string | null;
+    fileExternalId: string;
+    name: string | null;
+    path: string | null;
+    offset: number;
+    maxBytes: number | null;
+}
+
+export interface GetBoxFileDownloadLinkOperationDetails {
+    $type: 'get_box_file_download_link';
+    boxExternalId: string;
+    boxName: string | null;
+    fileExternalId: string;
+    name: string | null;
+    path: string | null;
+    expiresInMinutes: number | null;
+}
+
+export interface GetBoxBulkDownloadLinkOperationDetails {
+    $type: 'get_box_bulk_download_link';
+    boxExternalId: string;
+    boxName: string | null;
+    folders: BulkDownloadItemDetail[];
+    files: BulkDownloadItemDetail[];
+    excludedFolders: BulkDownloadItemDetail[];
+    excludedFiles: BulkDownloadItemDetail[];
+    expiresInMinutes: number | null;
+}
+
+export interface SearchBoxOperationDetails {
+    $type: 'search_box';
+    boxExternalId: string;
+    boxName: string | null;
+    phrase: string;
+    folderExternalId: string | null;
+    folderName: string | null;
+}
+
+export interface CreateBoxFolderOperationDetails {
+    $type: 'create_box_folder';
+    boxExternalId: string;
+    boxName: string | null;
+    name: string;
+    parentFolderExternalId: string | null;
+    parentLocation: string | null;
+}
+
+export interface CreateBoxFileOperationDetails {
+    $type: 'create_box_file';
+    boxExternalId: string;
+    boxName: string | null;
+    name: string;
+    folderExternalId: string | null;
+    parentLocation: string | null;
+    sizeInBytes: number;
+    contentPreview: string;
+    isPreviewTruncated: boolean;
+}
+
+export interface RenameBoxFileOperationDetails {
+    $type: 'rename_box_file';
+    boxExternalId: string;
+    boxName: string | null;
+    fileExternalId: string;
+    folderExternalId: string | null;
+    currentName: string | null;
+    newName: string;
+    path: string | null;
+}
+
+export interface RenameBoxFolderOperationDetails {
+    $type: 'rename_box_folder';
+    boxExternalId: string;
+    boxName: string | null;
+    folderExternalId: string;
+    currentName: string | null;
+    newName: string;
+    path: string | null;
+}
+
+export interface MoveBoxItemsOperationDetails {
+    $type: 'move_box_items';
+    boxExternalId: string;
+    boxName: string | null;
+    destinationFolderExternalId: string | null;
+    destinationName: string | null;
+    destinationPath: string | null;
+    folders: MoveItemDetail[];
+    files: MoveItemDetail[];
+}
+
+export interface DeleteBoxItemsOperationDetails {
+    $type: 'delete_box_items';
+    boxExternalId: string;
+    boxName: string | null;
+    folders: BulkDeleteFolderDetail[];
+    files: BulkDeleteFileDetail[];
 }
 
 export interface GetBoxOperationDetails {

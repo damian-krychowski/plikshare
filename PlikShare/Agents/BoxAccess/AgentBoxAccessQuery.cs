@@ -91,6 +91,8 @@ public class AgentBoxAccessQuery(
 
             return new Result(
                 Code: ResultCode.Ok,
+                AgentId: targets.AgentId,
+                BoxId: targets.BoxId,
                 AgentName: targets.AgentName,
                 BoxName: targets.BoxName);
         }
@@ -159,6 +161,8 @@ public class AgentBoxAccessQuery(
 
             return new Result(
                 Code: ResultCode.Ok,
+                AgentId: targets.AgentId,
+                BoxId: targets.BoxId,
                 AgentName: targets.AgentName,
                 BoxName: targets.BoxName);
         }
@@ -237,6 +241,8 @@ public class AgentBoxAccessQuery(
 
     public readonly record struct Result(
         ResultCode Code,
+        int AgentId = 0,
+        int BoxId = 0,
         string? AgentName = null,
         string? BoxName = null);
 

@@ -8,7 +8,7 @@ import { CreateBoxLinkOperationDetails } from '../../../services/agents.api';
     styleUrl: '../_op-details.scss',
     template: `
         <div class="op-details__section-title">
-            Box link — create{{ details().boxName ? ' for ' + details().boxName : '' }}
+            Box link - create{{ details().boxName ? ' for ' + details().boxName : '' }}
         </div>
 
         <div class="op-details__item">

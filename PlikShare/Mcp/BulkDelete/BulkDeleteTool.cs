@@ -18,7 +18,7 @@ public class BulkDeleteTool
     [Description("Deletes files and/or folders in a workspace the agent can access. Each listed folder is " +
                  "deleted together with everything inside it (all subfolders and files), like 'rm -rf'. " +
                  "Provide at least one id in folderExternalIds or fileExternalIds. If this tool requires " +
-                 "approval the call returns status 'waits_for_approval' with an approvalRequestId — poll " +
+                 "approval the call returns status 'waits_for_approval' with an approvalRequestId - poll " +
                  "check_approvals and, once approved, call execute_operation to run it.")]
     public static async Task<AgentToolResponse> Execute(
         IHttpContextAccessor httpContextAccessor,

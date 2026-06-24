@@ -1,3 +1,4 @@
+using PlikShare.Agents.BoxAccess;
 using PlikShare.Boxes.Cache;
 using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.Queue;
@@ -10,7 +11,8 @@ public class DeleteBoxesQueueJobExecutor(
     DbWriteQueue dbWriteQueue,
     BatchDeleteBoxesWithDependenciesQuery batchDeleteBoxesWithDependenciesQuery,
     BoxCache boxCache,
-    BoxMembershipCache boxMembershipCache) : IQueueNormalJobExecutor
+    BoxMembershipCache boxMembershipCache,
+    AgentBoxAccessCache agentBoxAccessCache) : IQueueNormalJobExecutor
 {
     public static string StaticJobType => DeleteBoxesQueueJobType.Value;
     public static int StaticPriority => QueueJobPriority.Low;
@@ -63,6 +65,13 @@ public class DeleteBoxesQueueJobExecutor(
             definition.WorkspaceId);
 
         await ClearCaches(result, cancellationToken);
+
+        foreach (var boxId in definition.BoxIds)
+        {
+            await agentBoxAccessCache.InvalidateAllForBox(
+                boxId,
+                cancellationToken);
+        }
 
         return QueueJobResult.Success;
     }

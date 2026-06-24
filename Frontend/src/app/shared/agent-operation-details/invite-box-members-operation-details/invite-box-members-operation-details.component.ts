@@ -8,7 +8,7 @@ import { InviteBoxMembersOperationDetails } from '../../../services/agents.api';
     styleUrl: '../_op-details.scss',
     template: `
         <div class="op-details__section-title">
-            Box{{ details().boxName ? ' — ' + details().boxName : '' }}
+            Box{{ details().boxName ? ' - ' + details().boxName : '' }}
         </div>
 
         <div class="explanation">

@@ -9,7 +9,7 @@ import { RevokeWorkspaceMemberOperationDetails } from '../../../services/agents.
     template: `
         @if(details().memberEmail) {
             <div class="op-details__section-title">
-                Workspace member — remove
+                Workspace member - remove
             </div>
 
             <div class="op-details__meta">

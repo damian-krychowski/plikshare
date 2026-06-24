@@ -18,7 +18,7 @@ public class ListShareLinksTool
     [Description("Lists all public share links in a workspace the agent can access, with their external ids, " +
                  "names, public URLs, expiration, download counts and how many files/folders each shares. If " +
                  "this tool requires approval the call returns status 'waits_for_approval' with an " +
-                 "approvalRequestId — poll check_approvals and, once approved, call execute_operation to run it.")]
+                 "approvalRequestId - poll check_approvals and, once approved, call execute_operation to run it.")]
     public static async Task<AgentToolResponse> Execute(
         IHttpContextAccessor httpContextAccessor,
         WorkspaceAgentMembershipCache workspaceAgentMembershipCache,

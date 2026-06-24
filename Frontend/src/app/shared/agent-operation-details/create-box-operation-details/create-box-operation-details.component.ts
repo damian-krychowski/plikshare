@@ -8,7 +8,7 @@ import { CreateBoxOperationDetails } from '../../../services/agents.api';
     styleUrl: '../_op-details.scss',
     template: `
         <div class="op-details__section-title">
-            Box — create{{ details().workspaceName ? ' in ' + details().workspaceName : '' }}
+            Box - create{{ details().workspaceName ? ' in ' + details().workspaceName : '' }}
         </div>
 
         <div class="op-details__item">

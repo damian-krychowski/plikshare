@@ -15,10 +15,10 @@ namespace PlikShare.Mcp.Boxes.Get;
 public class GetBoxTool
 {
     [McpServerTool(Name = AgentToolNames.GetBox)]
-    [Description("Reads the details of a single box in a workspace the agent can access — its name, enabled " +
+    [Description("Reads the details of a single box in a workspace the agent can access - its name, enabled " +
                  "state, the folder it exposes, how many members and links it has, and its immediate " +
                  "subfolders and files. If this tool requires approval the call returns status " +
-                 "'waits_for_approval' with an approvalRequestId — poll check_approvals and, once approved, " +
+                 "'waits_for_approval' with an approvalRequestId - poll check_approvals and, once approved, " +
                  "call execute_operation to run it.")]
     public static async Task<AgentToolResponse> Execute(
         IHttpContextAccessor httpContextAccessor,

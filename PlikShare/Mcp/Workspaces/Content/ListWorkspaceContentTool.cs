@@ -20,7 +20,7 @@ public class ListWorkspaceContentTool
                  "where each entry has a 'type' of 'folder' or 'file'. Folders are returned before files. " +
                  "Use the returned nextCursor to fetch the next page (with hasMore=true), reusing the same " +
                  "workspace, folder and type. If this tool requires approval the call returns status " +
-                 "'waits_for_approval' with an approvalRequestId — poll check_approvals and, once approved, " +
+                 "'waits_for_approval' with an approvalRequestId - poll check_approvals and, once approved, " +
                  "call execute_operation to run it.")]
     public static async Task<AgentToolResponse> Execute(
         IHttpContextAccessor httpContextAccessor,

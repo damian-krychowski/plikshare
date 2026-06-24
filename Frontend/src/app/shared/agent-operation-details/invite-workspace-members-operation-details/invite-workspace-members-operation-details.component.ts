@@ -8,7 +8,7 @@ import { InviteWorkspaceMembersOperationDetails } from '../../../services/agents
     styleUrl: '../_op-details.scss',
     template: `
         <div class="op-details__section-title">
-            Workspace{{ details().workspaceName ? ' — ' + details().workspaceName : '' }}
+            Workspace{{ details().workspaceName ? ' - ' + details().workspaceName : '' }}
         </div>
 
         <div class="explanation">

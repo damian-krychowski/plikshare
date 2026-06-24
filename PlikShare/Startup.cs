@@ -25,6 +25,7 @@ using PlikShare.Agents.UpdateSettings;
 using PlikShare.Agents.WorkspaceAccess;
 using PlikShare.AgentSkills;
 using PlikShare.Mcp;
+using PlikShare.Mcp.BoxAccess.List;
 using PlikShare.Mcp.Files.Get;
 using PlikShare.Mcp.Files.Create;
 using PlikShare.Mcp.Search;
@@ -562,6 +563,7 @@ public class Startup
         builder.Services.AddSingleton<GetAgentBoxToolsQuery>();
         builder.Services.AddSingleton<AgentToolBoxOverrideQuery>();
         builder.Services.AddSingleton<AgentBoxToolOverrideReader>();
+        builder.Services.AddSingleton<AgentBoxAccessCache>();
         builder.Services.AddSingleton<AgentOperationLedger>();
         builder.Services.AddSingleton<GetPendingAgentOperationsQuery>();
         builder.Services.AddSingleton<AgentOperationDetailsResolver>();
@@ -578,6 +580,7 @@ public class Startup
         builder.Services.AddSingleton<GetFileForAgentQuery>();
         builder.Services.AddSingleton<SearchForAgentQuery>();
         builder.Services.AddSingleton<InsertCompletedFileQuery>();
+        builder.Services.AddSingleton<GetAgentAccessibleBoxesQuery>();
         builder.AddPlikShareMcp();
 
         builder.Services.AddSingleton<IOneTimeCode, OneTimeCode>();

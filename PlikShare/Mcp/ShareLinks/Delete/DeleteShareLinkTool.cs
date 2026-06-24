@@ -19,7 +19,7 @@ public class DeleteShareLinkTool
     [McpServerTool(Name = AgentToolNames.DeleteShareLink)]
     [Description("Deletes a share link in a workspace the agent can access. The public URL stops working " +
                  "immediately. The shared files and folders themselves are not deleted. If this tool requires " +
-                 "approval the call returns status 'waits_for_approval' with an approvalRequestId — poll " +
+                 "approval the call returns status 'waits_for_approval' with an approvalRequestId - poll " +
                  "check_approvals and, once approved, call execute_operation to run it.")]
     public static async Task<AgentToolResponse> Execute(
         IHttpContextAccessor httpContextAccessor,

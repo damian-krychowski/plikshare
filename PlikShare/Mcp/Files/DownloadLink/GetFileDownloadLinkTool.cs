@@ -18,7 +18,7 @@ public class GetFileDownloadLinkTool
                  "treat it as a capability and keep the expiry short. The file is resolved across all " +
                  "workspaces the agent can access; if the agent has no access it is reported as not found. If " +
                  "this tool requires approval the call returns status 'waits_for_approval' with an " +
-                 "approvalRequestId — poll check_approvals and, once approved, call execute_operation to run it.")]
+                 "approvalRequestId - poll check_approvals and, once approved, call execute_operation to run it.")]
     public static async Task<AgentToolResponse> Execute(
         IHttpContextAccessor httpContextAccessor,
         AgentFileWorkspaceLocator fileWorkspaceLocator,

@@ -31,7 +31,7 @@ public class mcp_boxes_tests : TestFixture
         var tools = await mcp.Client.ListToolsAsync();
 
         tools.Select(t => t.Name).Should().Contain(
-            ["list_boxes", "get_box", "create_box", "update_box", "delete_box"]);
+            ["list_workspace_boxes", "get_box", "create_box", "update_box", "delete_box"]);
     }
 
     [Fact]
@@ -301,7 +301,7 @@ public class mcp_boxes_tests : TestFixture
         McpAgentSession mcp,
         string workspaceExternalId)
     {
-        var result = await CallTool(mcp, "list_boxes", new Dictionary<string, object?>
+        var result = await CallTool(mcp, "list_workspace_boxes", new Dictionary<string, object?>
         {
             ["workspaceExternalId"] = workspaceExternalId
         });
@@ -322,7 +322,7 @@ public class mcp_boxes_tests : TestFixture
             cookie: owner.Cookie,
             antiforgery: owner.Antiforgery);
 
-        await ConfigureTool(owner, agent, "list_boxes", requiresApproval: false);
+        await ConfigureTool(owner, agent, "list_workspace_boxes", requiresApproval: false);
         await ConfigureTool(owner, agent, "get_box", requiresApproval: false);
         await ConfigureTool(owner, agent, "create_box", requiresApproval: createBoxRequiresApproval);
         await ConfigureTool(owner, agent, "update_box", requiresApproval: false);

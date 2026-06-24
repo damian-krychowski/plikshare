@@ -17,11 +17,11 @@ public class CreateShareLinkTool
 {
     [McpServerTool(Name = AgentToolNames.CreateShareLink)]
     [Description("Creates a public link that shares the selected files and/or folders from a workspace the " +
-                 "agent can access. Anyone with the link can download the shared items — no login required. " +
+                 "agent can access. Anyone with the link can download the shared items - no login required. " +
                  "Provide at least one id in fileExternalIds or folderExternalIds. Optional: expiresAt " +
                  "(ISO 8601), maxDownloads, password. Returns the share's external id and public URL. If this " +
                  "tool requires approval the call returns status 'waits_for_approval' with an approvalRequestId " +
-                 "— poll check_approvals and, once approved, call execute_operation to run it.")]
+                 "- poll check_approvals and, once approved, call execute_operation to run it.")]
     public static async Task<AgentToolResponse> Execute(
         IHttpContextAccessor httpContextAccessor,
         WorkspaceAgentMembershipCache workspaceAgentMembershipCache,

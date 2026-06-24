@@ -38,7 +38,7 @@ public static class AgentToolNames
     public const string UpdateWorkspaceMemberPermissions = "update_workspace_member_permissions";
     public const string RevokeWorkspaceMember = "revoke_workspace_member";
 
-    public const string ListBoxes = "list_boxes";
+    public const string ListWorkspaceBoxes = "list_workspace_boxes";
     public const string GetBox = "get_box";
     public const string CreateBox = "create_box";
     public const string UpdateBox = "update_box";
@@ -54,6 +54,23 @@ public static class AgentToolNames
     public const string InviteBoxMembers = "invite_box_members";
     public const string UpdateBoxMemberPermissions = "update_box_member_permissions";
     public const string RevokeBoxMember = "revoke_box_member";
+
+    // Box-access tools: the agent acts as a consumer inside a box it was granted access to
+    // (ba_box_agents), scoped to the box's folder. Gated by box access + per-box tool config.
+    // list_boxes mirrors list_workspaces — it lists the boxes shared directly with the agent.
+    public const string ListBoxes = "list_boxes";
+    public const string GetBoxDetails = "get_box_details";
+    public const string ListBoxContent = "list_box_content";
+    public const string ReadBoxFile = "read_box_file";
+    public const string GetBoxFileDownloadLink = "get_box_file_download_link";
+    public const string GetBoxBulkDownloadLink = "get_box_bulk_download_link";
+    public const string SearchBox = "search_box";
+    public const string CreateBoxFolder = "create_box_folder";
+    public const string CreateBoxFile = "create_box_file";
+    public const string RenameBoxFile = "rename_box_file";
+    public const string RenameBoxFolder = "rename_box_folder";
+    public const string MoveBoxItems = "move_box_items";
+    public const string DeleteBoxItems = "delete_box_items";
 
     public const string ExecuteOperation = "execute_operation";
     public const string CheckApprovals = "check_approvals";

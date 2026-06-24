@@ -14,8 +14,10 @@ public class ListWorkspacesTool
     [McpServerTool(Name = AgentToolNames.ListWorkspaces)]
     [Description("Lists the workspaces this agent can access, with their external ids, names and current " +
                  "size in bytes. Use a returned workspaceExternalId as input to other tools such as " +
-                 "create_folder. If this tool requires approval the call returns status 'waits_for_approval' " +
-                 "with an approvalRequestId — poll check_approvals and, once approved, call execute_operation " +
+                 "create_folder. Workspaces and boxes are separate access surfaces; you may also have direct " +
+                 "access to individual boxes - call " + AgentToolNames.ListBoxes + " to discover them. If this " +
+                 "tool requires approval the call returns status 'waits_for_approval' " +
+                 "with an approvalRequestId - poll check_approvals and, once approved, call execute_operation " +
                  "to run it.")]
     public static async Task<AgentToolResponse> Execute(
         IHttpContextAccessor httpContextAccessor,

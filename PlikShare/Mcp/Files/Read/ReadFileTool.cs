@@ -15,10 +15,10 @@ public class ReadFileTool
     [McpServerTool(Name = AgentToolNames.ReadFile)]
     [Description("Reads the text content of a file by its external id, decoded as UTF-8. The file is resolved " +
                  "across all workspaces the agent can access; if the agent has no access it is reported as not " +
-                 "found. Only text files are returned — binary files (images, video, PDF, archives) are " +
+                 "found. Only text files are returned - binary files (images, video, PDF, archives) are " +
                  "rejected with a clear error. Large files are read in pages: pass the returned nextOffset back " +
                  "as offset while hasMore is true to read the rest. If this tool requires approval the call " +
-                 "returns status 'waits_for_approval' with an approvalRequestId — poll check_approvals and, " +
+                 "returns status 'waits_for_approval' with an approvalRequestId - poll check_approvals and, " +
                  "once approved, call execute_operation to run it.")]
     public static async Task<AgentToolResponse> Execute(
         IHttpContextAccessor httpContextAccessor,

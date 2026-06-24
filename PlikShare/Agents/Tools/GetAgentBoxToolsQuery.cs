@@ -8,9 +8,9 @@ using PlikShare.Core.SQLite;
 namespace PlikShare.Agents.Tools;
 
 /// <summary>
-/// Lists the overridable tools for a single (agent, box) pair, surfacing the agent's global config, any
-/// per-box override and the effective result. Box overrides apply to the same set of finer-scopable
-/// tools as workspace overrides (<see cref="AgentToolDefinition.IsWorkspaceOverridable"/>).
+/// Lists the box-access tools for a single (agent, box) pair, surfacing the agent's global config, any
+/// per-box override and the effective result. These are the tools the agent uses inside a box it was
+/// granted direct access to (<see cref="AgentToolDefinition.IsBoxOverridable"/>).
 /// </summary>
 public class GetAgentBoxToolsQuery(
     AgentCache agentCache,
@@ -71,7 +71,7 @@ public class GetAgentBoxToolsQuery(
                 row => new AgentToolScopeOverride(row.IsEnabled, row.RequiresApproval));
 
         var tools = AgentToolCatalog.All
-            .Where(definition => definition.IsWorkspaceOverridable)
+            .Where(definition => definition.IsBoxOverridable)
             .Select(definition => BuildDto(
                 agent,
                 definition,

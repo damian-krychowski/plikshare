@@ -35,16 +35,27 @@ public static class PlikShareAgentSkill
 
                # PlikShare
 
-               PlikShare organizes files into workspaces (private file trees). Folders live inside a
-               workspace and can be nested. You act through the PlikShare agent tools and can only
-               touch workspaces you have been granted access to.
+               PlikShare organizes files into workspaces (private file trees); folders live inside a
+               workspace and can be nested. You act through the PlikShare agent tools and can only touch
+               what you have been granted access to.
+
+               You can reach files through two independent access surfaces, and you may have either or both:
+
+               - **Workspaces** you are a member of - start with `{{AgentToolNames.ListWorkspaces}}`, then use
+                 the workspace tools below.
+               - **Boxes** shared directly with you - start with `{{AgentToolNames.ListBoxes}}`, then use the
+                 box-access tools (see **Box access** below).
+
+               At the start of a task, check both. An empty result from one does **not** mean you have no
+               access - the two surfaces are separate, so always also try the other.
 
                ## Finding a workspace
 
                You always need a `workspaceExternalId` (format `w_...`) before working with folders.
                Call the `{{AgentToolNames.ListWorkspaces}}` tool to see the workspaces you can access, then pick one. If
-               the list is empty, either create one (see below) or ask an administrator to grant your agent
-               access to a workspace.
+               the list is empty you may still have direct access to individual boxes (call
+               `{{AgentToolNames.ListBoxes}}`, see **Box access**); otherwise create a workspace (see below) or
+               ask an administrator to grant your agent access to a workspace.
 
                ## Listing storages
 
@@ -57,8 +68,8 @@ public static class PlikShareAgentSkill
 
                Use the `{{AgentToolNames.CreateWorkspace}}` tool to create a new workspace you will own:
 
-               - `name` (required) — a name for the workspace.
-               - `storageExternalId` (required) — the storage to create it on. Call `{{AgentToolNames.ListStorages}}` first to
+               - `name` (required) - a name for the workspace.
+               - `storageExternalId` (required) - the storage to create it on. Call `{{AgentToolNames.ListStorages}}` first to
                  see the storages you can use and pick one's `storageExternalId`.
 
                The tool returns the new workspace's `workspaceExternalId`, which you can immediately use with
@@ -75,13 +86,13 @@ public static class PlikShareAgentSkill
 
                Use the `{{AgentToolNames.ListWorkspaceContent}}` tool to see what a workspace contains:
 
-               - `workspaceExternalId` (required) — a workspace id from `{{AgentToolNames.ListWorkspaces}}`.
-               - `folderExternalId` (optional) — a folder id `fo_...` to list that folder; omit it to
+               - `workspaceExternalId` (required) - a workspace id from `{{AgentToolNames.ListWorkspaces}}`.
+               - `folderExternalId` (optional) - a folder id `fo_...` to list that folder; omit it to
                  list the workspace root.
-               - `type` (optional) — `all` (default), `folder` or `file` to filter the results.
-               - `cursor` (optional) — the `nextCursor` from a previous call, to fetch the next page;
+               - `type` (optional) - `all` (default), `folder` or `file` to filter the results.
+               - `cursor` (optional) - the `nextCursor` from a previous call, to fetch the next page;
                  reuse it with the same `workspaceExternalId`, `folderExternalId` and `type`.
-               - `limit` (optional) — page size, default 200, maximum 1000.
+               - `limit` (optional) - page size, default 200, maximum 1000.
 
                The tool returns `path` (the folders from the top level down to the one you are listing;
                empty at the workspace root) and an `entries` list. Each entry has a `type` of `folder` or
@@ -96,17 +107,17 @@ public static class PlikShareAgentSkill
                `extensions: ["jpg","png"]` + `nameContains: ["invoice"]` finds items whose name contains
                "invoice" AND whose extension is jpg OR png.
 
-               - `workspaceIds` / `folderIds` (optional) — scope; omit both to search every workspace you can
+               - `workspaceIds` / `folderIds` (optional) - scope; omit both to search every workspace you can
                  access. Folder scoping searches the folder's whole subtree. Ids you cannot access are
                  ignored.
-               - `excludeWorkspaceIds` / `excludeFolderIds` (optional) — remove those workspaces, or those
+               - `excludeWorkspaceIds` / `excludeFolderIds` (optional) - remove those workspaces, or those
                  folder subtrees, from the results. Useful to carve a folder out of a wider search
                  (e.g. search a workspace but `excludeFolderIds` an Archive folder).
-               - `types` — `["file"]`, `["folder"]` or both/empty.
-               - `nameContains` — substrings (OR), case-insensitive.
-               - `extensions` / `contentTypes` — files only; `contentTypes` accepts exact (`image/png`) or a
+               - `types` - `["file"]`, `["folder"]` or both/empty.
+               - `nameContains` - substrings (OR), case-insensitive.
+               - `extensions` / `contentTypes` - files only; `contentTypes` accepts exact (`image/png`) or a
                  prefix (`image/*`).
-               - `createdAfter` / `createdBefore` (ISO 8601) and `sizeMin` / `sizeMax` — range bounds.
+               - `createdAfter` / `createdBefore` (ISO 8601) and `sizeMin` / `sizeMax` - range bounds.
 
                `extensions`, `contentTypes` and size filters apply to files only; combining them with
                `types: ["folder"]` is rejected. Results are newest-first; when `hasMore` is true pass the
@@ -124,10 +135,10 @@ public static class PlikShareAgentSkill
 
                Use the `{{AgentToolNames.ReadFile}}` tool with a `fileExternalId` (no workspace needed) to read a file's content as
                UTF-8 text. Only text files are returned; binary files (images, video, PDF, archives) are rejected
-               with a clear error — use `{{AgentToolNames.GetFile}}` for their metadata instead.
+               with a clear error - use `{{AgentToolNames.GetFile}}` for their metadata instead.
 
-               - `offset` (optional) — byte position to start from; defaults to 0.
-               - `maxBytes` (optional) — page size in bytes (default 65536, min 1024, max 262144).
+               - `offset` (optional) - byte position to start from; defaults to 0.
+               - `maxBytes` (optional) - page size in bytes (default 65536, min 1024, max 262144).
 
                The tool returns `content`, `totalSizeInBytes`, `nextOffset` and `hasMore`. For a large file,
                keep calling with `offset` set to the previous `nextOffset` while `hasMore` is true to read the
@@ -150,9 +161,9 @@ public static class PlikShareAgentSkill
                workspace as a single ZIP archive:
 
                - `workspaceExternalId` (required).
-               - `fileExternalIds` / `folderExternalIds` — what to include; provide at least one. Folders are
+               - `fileExternalIds` / `folderExternalIds` - what to include; provide at least one. Folders are
                  included with all their contents.
-               - `excludedFileExternalIds` / `excludedFolderExternalIds` — optional ids to carve out of the
+               - `excludedFileExternalIds` / `excludedFolderExternalIds` - optional ids to carve out of the
                  included folders.
                - `expiresInMinutes` (optional, default 15, max 1440).
 
@@ -165,9 +176,9 @@ public static class PlikShareAgentSkill
 
                - `workspaceExternalId` (required) and `name` (required, including the extension, e.g.
                  `report.md`).
-               - `content` (required) — the file content as UTF-8 text, at most 10 MB.
-               - `folderExternalId` (optional) — the folder to create it in; omit for the workspace root.
-               - `contentType` (optional) — derived from the extension if omitted.
+               - `content` (required) - the file content as UTF-8 text, at most 10 MB.
+               - `folderExternalId` (optional) - the folder to create it in; omit for the workspace root.
+               - `contentType` (optional) - derived from the extension if omitted.
 
                The tool returns the new file's `fileExternalId`. It is for text content; binary files are not
                supported.
@@ -175,16 +186,16 @@ public static class PlikShareAgentSkill
                ## Renaming a file
 
                Use the `{{AgentToolNames.RenameFile}}` tool with `workspaceExternalId`, the `fileExternalId` of the file to
-               rename, and the new `name`. Provide the name only, without the extension — the extension is
+               rename, and the new `name`. Provide the name only, without the extension - the extension is
                kept unchanged.
 
                ## Creating a folder
 
                Use the `{{AgentToolNames.CreateFolder}}` tool:
 
-               - `workspaceExternalId` (required) — a workspace id from `{{AgentToolNames.ListWorkspaces}}`.
-               - `name` (required) — the folder name.
-               - `parentFolderExternalId` (optional) — a folder id `fo_...` to create a subfolder;
+               - `workspaceExternalId` (required) - a workspace id from `{{AgentToolNames.ListWorkspaces}}`.
+               - `name` (required) - the folder name.
+               - `parentFolderExternalId` (optional) - a folder id `fo_...` to create a subfolder;
                  omit it to create a top-level folder.
 
                The tool returns the new folder's `folderExternalId`.
@@ -198,14 +209,14 @@ public static class PlikShareAgentSkill
 
                Use the `{{AgentToolNames.BulkDelete}}` tool with `workspaceExternalId` and any combination of:
 
-               - `folderExternalIds` — folders to delete. Each folder is deleted **together with everything
+               - `folderExternalIds` - folders to delete. Each folder is deleted **together with everything
                  inside it** (all subfolders and files), like `rm -rf`.
-               - `fileExternalIds` — individual files to delete.
+               - `fileExternalIds` - individual files to delete.
 
                Provide at least one id. The response is wrapped: on success it has `status: "executed"`
                with a `result` holding `deletedFileCount` and `deletedSizeInBytes` (the number and total
                size of files removed). Because deleting is destructive an administrator may require human
-               approval first — then the tool instead returns `status: "waits_for_approval"`; see
+               approval first - then the tool instead returns `status: "waits_for_approval"`; see
                **Approvals** below. If the workspace has a trash policy enabled the deleted files can be
                restored from trash; otherwise the deletion is permanent.
 
@@ -214,13 +225,13 @@ public static class PlikShareAgentSkill
                Use the `{{AgentToolNames.MoveItems}}` tool to move files and/or folders into another folder within the same
                workspace:
 
-               - `workspaceExternalId` (required) — the workspace that holds the items and the destination.
-               - `folderExternalIds` / `fileExternalIds` — what to move; provide at least one. Each folder is
+               - `workspaceExternalId` (required) - the workspace that holds the items and the destination.
+               - `folderExternalIds` / `fileExternalIds` - what to move; provide at least one. Each folder is
                  moved together with everything inside it.
-               - `destinationFolderExternalId` (optional) — where to move them; omit to move to the workspace
+               - `destinationFolderExternalId` (optional) - where to move them; omit to move to the workspace
                  root.
 
-               All items and the destination must live in the same workspace — moving items between workspaces
+               All items and the destination must live in the same workspace - moving items between workspaces
                is not supported. A folder cannot be moved into itself or one of its own subfolders.
 
                ## Sharing files with a public link
@@ -229,7 +240,7 @@ public static class PlikShareAgentSkill
                open without logging in:
 
                - `workspaceExternalId` (required) and `name` (required).
-               - `fileExternalIds` / `folderExternalIds` — what to share; provide at least one.
+               - `fileExternalIds` / `folderExternalIds` - what to share; provide at least one.
                - `expiresAt` (optional ISO 8601), `maxDownloads` (optional), `password` (optional).
 
                The tool returns the share's `externalId` and the public `url` to hand to the user.
@@ -240,7 +251,7 @@ public static class PlikShareAgentSkill
                - `{{AgentToolNames.GetShareLink}}` (with `workspaceExternalId` and `shareLinkExternalId`) returns one link's
                  details, including which files and folders it shares and excludes.
                - `{{AgentToolNames.UpdateShareLink}}` (with `workspaceExternalId` and `shareLinkExternalId`) changes a link's
-                 settings. Only the fields you choose are touched — anything left out is kept. Pass `name` to
+                 settings. Only the fields you choose are touched - anything left out is kept. Pass `name` to
                  rename. For the nullable settings, set the matching flag and provide a value to set it, or set
                  the flag and leave the value empty to clear it:
                  `shouldUpdateExpiry` + `expiresAt` (ISO 8601; empty = no expiry),
@@ -270,7 +281,7 @@ public static class PlikShareAgentSkill
                (box members) or anonymously through public box links, each with their own permissions. Manage
                boxes with:
 
-               - `{{AgentToolNames.ListBoxes}}` (with `workspaceExternalId`) lists the boxes, each with a `boxExternalId`,
+               - `{{AgentToolNames.ListWorkspaceBoxes}}` (with `workspaceExternalId`) lists the boxes, each with a `boxExternalId`,
                  `name`, `isEnabled` and the folder path it exposes.
                - `{{AgentToolNames.GetBox}}` (with `workspaceExternalId`, `boxExternalId`) returns a box's details, how many
                  members and links it has, and its immediate subfolders and files.
@@ -317,13 +328,50 @@ public static class PlikShareAgentSkill
                - `{{AgentToolNames.RevokeBoxMember}}` (with `workspaceExternalId`, `boxExternalId`, `memberExternalId`)
                  removes a member (or a pending invitation) from the box.
 
+               ## Box access
+
+               Separately from managing a workspace, you can be granted direct access to an individual box -
+               the same way a person is. These boxes are not tied to a workspace you belong to; an
+               administrator shares them with you one by one. When you work inside such a box you act as its
+               consumer: everything is scoped to the folder the box exposes, and you only need the box's
+               `boxExternalId` (never a `workspaceExternalId`).
+
+               - `{{AgentToolNames.ListBoxes}}` (no arguments) lists the boxes shared directly with you, each with a
+                 `externalId`, `name`, `isEnabled` and the `workspaceName` it belongs to. This mirrors
+                 `{{AgentToolNames.ListWorkspaces}}` - it is your entry point into box access.
+               - `{{AgentToolNames.GetBoxDetails}}` (with `boxExternalId`) returns the box's name, whether it is enabled and
+                 the `rootFolderExternalId` it exposes.
+               - `{{AgentToolNames.ListBoxContent}}` (with `boxExternalId`, optional `folderExternalId`) lists the folders and
+                 files in the box's root, or in one of its folders.
+               - `{{AgentToolNames.ReadBoxFile}}` (with `boxExternalId`, `fileExternalId`, optional `offset`, `maxBytes`) reads a
+                 text file's content, paging through larger files with the returned `nextOffset` and `hasMore`.
+               - `{{AgentToolNames.GetBoxFileDownloadLink}}` (with `boxExternalId`, `fileExternalId`, optional `expiresInMinutes`)
+                 creates a short-lived link to download one file.
+               - `{{AgentToolNames.GetBoxBulkDownloadLink}}` (with `boxExternalId`, `fileExternalIds`, `folderExternalIds`) creates a
+                 link to download several items as one ZIP archive.
+               - `{{AgentToolNames.SearchBox}}` (with `boxExternalId`, `phrase`, optional `folderExternalId`) finds files by name
+                 inside the box.
+               - `{{AgentToolNames.CreateBoxFolder}}` (with `boxExternalId`, `name`, optional `parentFolderExternalId`) creates a
+                 folder; omit the parent for the box root.
+               - `{{AgentToolNames.CreateBoxFile}}` (with `boxExternalId`, `name`, `content`, optional `folderExternalId`,
+                 `contentType`) creates a text file.
+               - `{{AgentToolNames.RenameBoxFile}}` / `{{AgentToolNames.RenameBoxFolder}}` (with `boxExternalId`, the item's id and a new
+                 `name`) rename a file or folder.
+               - `{{AgentToolNames.MoveBoxItems}}` (with `boxExternalId`, `folderExternalIds`, `fileExternalIds`, optional
+                 `destinationFolderExternalId`) moves items into another folder; omit the destination for the box root.
+               - `{{AgentToolNames.DeleteBoxItems}}` (with `boxExternalId`, `fileExternalIds`, `folderExternalIds`) deletes files
+                 and/or folders, including whole trees. This is destructive and usually requires approval.
+
+               Every id you pass must live inside the box - files and folders elsewhere are not reachable
+               through these tools, even when they share the underlying workspace.
+
                ## Approvals
 
-               Some operations can be configured to require a human's approval before they run — typically
+               Some operations can be configured to require a human's approval before they run - typically
                destructive ones such as `{{AgentToolNames.BulkDelete}}` and `{{AgentToolNames.DeleteShareLink}}`, or ones that grant
                people access such as `{{AgentToolNames.InviteWorkspaceMembers}}` and `{{AgentToolNames.InviteBoxMembers}}`. Whether a given tool needs
                approval is decided per agent by an administrator, so the same tool may run immediately for
-               one agent and need approval for another. You cannot tell in advance — react to what the
+               one agent and need approval for another. You cannot tell in advance - react to what the
                tool returns.
 
                A tool that needs approval does **not** act when you call it. Instead it returns
@@ -341,12 +389,12 @@ public static class PlikShareAgentSkill
                   normal result under `result`.
 
                If the user denies the request, or it expires before they act, `{{AgentToolNames.ExecuteOperation}}` returns
-               `status: "rejected"` with the reason — do not retry, the operation will not run.
+               `status: "rejected"` with the reason - do not retry, the operation will not run.
                `{{AgentToolNames.ExecuteOperation}}` is safe to call more than once for the same `approvalRequestId`: an
                already-executed operation returns its stored result without running again.
 
                A tool that does **not** require approval simply returns `status: "executed"` with its
-               `result` right away — there is nothing to confirm.
+               `result` right away - there is nothing to confirm.
 
                ## Notes
 

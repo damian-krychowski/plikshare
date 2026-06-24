@@ -25,7 +25,20 @@ import { ListWorkspaceMembersOperationDetailsComponent } from './list-workspace-
 import { InviteWorkspaceMembersOperationDetailsComponent } from './invite-workspace-members-operation-details/invite-workspace-members-operation-details.component';
 import { UpdateWorkspaceMemberPermissionsOperationDetailsComponent } from './update-workspace-member-permissions-operation-details/update-workspace-member-permissions-operation-details.component';
 import { RevokeWorkspaceMemberOperationDetailsComponent } from './revoke-workspace-member-operation-details/revoke-workspace-member-operation-details.component';
+import { ListWorkspaceBoxesOperationDetailsComponent } from './list-workspace-boxes-operation-details/list-workspace-boxes-operation-details.component';
 import { ListBoxesOperationDetailsComponent } from './list-boxes-operation-details/list-boxes-operation-details.component';
+import { GetBoxDetailsOperationDetailsComponent } from './get-box-details-operation-details/get-box-details-operation-details.component';
+import { ListBoxContentOperationDetailsComponent } from './list-box-content-operation-details/list-box-content-operation-details.component';
+import { ReadBoxFileOperationDetailsComponent } from './read-box-file-operation-details/read-box-file-operation-details.component';
+import { GetBoxFileDownloadLinkOperationDetailsComponent } from './get-box-file-download-link-operation-details/get-box-file-download-link-operation-details.component';
+import { GetBoxBulkDownloadLinkOperationDetailsComponent } from './get-box-bulk-download-link-operation-details/get-box-bulk-download-link-operation-details.component';
+import { SearchBoxOperationDetailsComponent } from './search-box-operation-details/search-box-operation-details.component';
+import { CreateBoxFolderOperationDetailsComponent } from './create-box-folder-operation-details/create-box-folder-operation-details.component';
+import { CreateBoxFileOperationDetailsComponent } from './create-box-file-operation-details/create-box-file-operation-details.component';
+import { RenameBoxFileOperationDetailsComponent } from './rename-box-file-operation-details/rename-box-file-operation-details.component';
+import { RenameBoxFolderOperationDetailsComponent } from './rename-box-folder-operation-details/rename-box-folder-operation-details.component';
+import { MoveBoxItemsOperationDetailsComponent } from './move-box-items-operation-details/move-box-items-operation-details.component';
+import { DeleteBoxItemsOperationDetailsComponent } from './delete-box-items-operation-details/delete-box-items-operation-details.component';
 import { GetBoxOperationDetailsComponent } from './get-box-operation-details/get-box-operation-details.component';
 import { CreateBoxOperationDetailsComponent } from './create-box-operation-details/create-box-operation-details.component';
 import { UpdateBoxOperationDetailsComponent } from './update-box-operation-details/update-box-operation-details.component';
@@ -69,7 +82,20 @@ import { RevokeBoxMemberOperationDetailsComponent } from './revoke-box-member-op
         InviteWorkspaceMembersOperationDetailsComponent,
         UpdateWorkspaceMemberPermissionsOperationDetailsComponent,
         RevokeWorkspaceMemberOperationDetailsComponent,
+        ListWorkspaceBoxesOperationDetailsComponent,
         ListBoxesOperationDetailsComponent,
+        GetBoxDetailsOperationDetailsComponent,
+        ListBoxContentOperationDetailsComponent,
+        ReadBoxFileOperationDetailsComponent,
+        GetBoxFileDownloadLinkOperationDetailsComponent,
+        GetBoxBulkDownloadLinkOperationDetailsComponent,
+        SearchBoxOperationDetailsComponent,
+        CreateBoxFolderOperationDetailsComponent,
+        CreateBoxFileOperationDetailsComponent,
+        RenameBoxFileOperationDetailsComponent,
+        RenameBoxFolderOperationDetailsComponent,
+        MoveBoxItemsOperationDetailsComponent,
+        DeleteBoxItemsOperationDetailsComponent,
         GetBoxOperationDetailsComponent,
         CreateBoxOperationDetailsComponent,
         UpdateBoxOperationDetailsComponent,
@@ -224,10 +250,87 @@ import { RevokeBoxMemberOperationDetailsComponent } from './revoke-box-member-op
                     [details]="$any(details())">
                 </app-revoke-workspace-member-operation-details>
             }
+            @case('list_workspace_boxes') {
+                <app-list-workspace-boxes-operation-details
+                    [details]="$any(details())">
+                </app-list-workspace-boxes-operation-details>
+            }
             @case('list_boxes') {
                 <app-list-boxes-operation-details
                     [details]="$any(details())">
                 </app-list-boxes-operation-details>
+            }
+            @case('get_box_details') {
+                <app-get-box-details-operation-details
+                    [details]="$any(details())"
+                    [workspaceExternalId]="workspaceExternalId()">
+                </app-get-box-details-operation-details>
+            }
+            @case('list_box_content') {
+                <app-list-box-content-operation-details
+                    [details]="$any(details())"
+                    [workspaceExternalId]="workspaceExternalId()">
+                </app-list-box-content-operation-details>
+            }
+            @case('read_box_file') {
+                <app-read-box-file-operation-details
+                    [details]="$any(details())"
+                    [workspaceExternalId]="workspaceExternalId()">
+                </app-read-box-file-operation-details>
+            }
+            @case('get_box_file_download_link') {
+                <app-get-box-file-download-link-operation-details
+                    [details]="$any(details())"
+                    [workspaceExternalId]="workspaceExternalId()">
+                </app-get-box-file-download-link-operation-details>
+            }
+            @case('get_box_bulk_download_link') {
+                <app-get-box-bulk-download-link-operation-details
+                    [details]="$any(details())"
+                    [workspaceExternalId]="workspaceExternalId()">
+                </app-get-box-bulk-download-link-operation-details>
+            }
+            @case('search_box') {
+                <app-search-box-operation-details
+                    [details]="$any(details())"
+                    [workspaceExternalId]="workspaceExternalId()">
+                </app-search-box-operation-details>
+            }
+            @case('create_box_folder') {
+                <app-create-box-folder-operation-details
+                    [details]="$any(details())"
+                    [workspaceExternalId]="workspaceExternalId()">
+                </app-create-box-folder-operation-details>
+            }
+            @case('create_box_file') {
+                <app-create-box-file-operation-details
+                    [details]="$any(details())"
+                    [workspaceExternalId]="workspaceExternalId()">
+                </app-create-box-file-operation-details>
+            }
+            @case('rename_box_file') {
+                <app-rename-box-file-operation-details
+                    [details]="$any(details())"
+                    [workspaceExternalId]="workspaceExternalId()">
+                </app-rename-box-file-operation-details>
+            }
+            @case('rename_box_folder') {
+                <app-rename-box-folder-operation-details
+                    [details]="$any(details())"
+                    [workspaceExternalId]="workspaceExternalId()">
+                </app-rename-box-folder-operation-details>
+            }
+            @case('move_box_items') {
+                <app-move-box-items-operation-details
+                    [details]="$any(details())"
+                    [workspaceExternalId]="workspaceExternalId()">
+                </app-move-box-items-operation-details>
+            }
+            @case('delete_box_items') {
+                <app-delete-box-items-operation-details
+                    [details]="$any(details())"
+                    [workspaceExternalId]="workspaceExternalId()">
+                </app-delete-box-items-operation-details>
             }
             @case('get_box') {
                 <app-get-box-operation-details

@@ -20,7 +20,7 @@ public class MoveItemsTool
                  "folderExternalIds or fileExternalIds. Omit destinationFolderExternalId to move the items " +
                  "to the workspace root. All items and the destination must belong to the given workspace; " +
                  "moving items between workspaces is not supported. If this tool requires approval the call " +
-                 "returns status 'waits_for_approval' with an approvalRequestId — poll check_approvals and, " +
+                 "returns status 'waits_for_approval' with an approvalRequestId - poll check_approvals and, " +
                  "once approved, call execute_operation to run it.")]
     public static async Task<AgentToolResponse> Execute(
         IHttpContextAccessor httpContextAccessor,

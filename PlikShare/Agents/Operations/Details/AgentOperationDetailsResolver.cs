@@ -1,9 +1,22 @@
 using PlikShare.Agents.Operations.Details.Contracts;
 using PlikShare.Agents.Tools;
+using PlikShare.Mcp.BoxAccess.BulkDownloadLink;
+using PlikShare.Mcp.BoxAccess.Content;
+using PlikShare.Mcp.BoxAccess.CreateFile;
+using PlikShare.Mcp.BoxAccess.CreateFolder;
+using PlikShare.Mcp.BoxAccess.Delete;
+using PlikShare.Mcp.BoxAccess.DownloadLink;
+using PlikShare.Mcp.BoxAccess.GetDetails;
+using PlikShare.Mcp.BoxAccess.List;
+using PlikShare.Mcp.BoxAccess.MoveItems;
+using PlikShare.Mcp.BoxAccess.ReadFile;
+using PlikShare.Mcp.BoxAccess.RenameFile;
+using PlikShare.Mcp.BoxAccess.RenameFolder;
+using PlikShare.Mcp.BoxAccess.Search;
 using PlikShare.Mcp.Boxes.Create;
 using PlikShare.Mcp.Boxes.Delete;
 using PlikShare.Mcp.Boxes.Get;
-using PlikShare.Mcp.Boxes.List;
+using PlikShare.Mcp.Boxes.ListWorkspaceBoxes;
 using PlikShare.Mcp.Boxes.Members.Invite;
 using PlikShare.Mcp.Boxes.Members.List;
 using PlikShare.Mcp.Boxes.Members.Revoke;
@@ -73,7 +86,7 @@ public class AgentOperationDetailsResolver(
     InviteWorkspaceMembersOperationDetailsResolver inviteWorkspaceMembers,
     UpdateWorkspaceMemberPermissionsOperationDetailsResolver updateWorkspaceMemberPermissions,
     RevokeWorkspaceMemberOperationDetailsResolver revokeWorkspaceMember,
-    ListBoxesOperationDetailsResolver listBoxes,
+    ListWorkspaceBoxesOperationDetailsResolver listWorkspaceBoxes,
     GetBoxOperationDetailsResolver getBox,
     CreateBoxOperationDetailsResolver createBox,
     UpdateBoxOperationDetailsResolver updateBox,
@@ -86,7 +99,20 @@ public class AgentOperationDetailsResolver(
     ListBoxMembersOperationDetailsResolver listBoxMembers,
     InviteBoxMembersOperationDetailsResolver inviteBoxMembers,
     UpdateBoxMemberPermissionsOperationDetailsResolver updateBoxMemberPermissions,
-    RevokeBoxMemberOperationDetailsResolver revokeBoxMember)
+    RevokeBoxMemberOperationDetailsResolver revokeBoxMember,
+    ListBoxesOperationDetailsResolver listBoxes,
+    GetBoxDetailsOperationDetailsResolver getBoxDetails,
+    ListBoxContentOperationDetailsResolver listBoxContent,
+    ReadBoxFileOperationDetailsResolver readBoxFile,
+    GetBoxFileDownloadLinkOperationDetailsResolver getBoxFileDownloadLink,
+    GetBoxBulkDownloadLinkOperationDetailsResolver getBoxBulkDownloadLink,
+    SearchBoxOperationDetailsResolver searchBox,
+    CreateBoxFolderOperationDetailsResolver createBoxFolder,
+    CreateBoxFileOperationDetailsResolver createBoxFile,
+    RenameBoxFileOperationDetailsResolver renameBoxFile,
+    RenameBoxFolderOperationDetailsResolver renameBoxFolder,
+    MoveBoxItemsOperationDetailsResolver moveBoxItems,
+    DeleteBoxItemsOperationDetailsResolver deleteBoxItems)
 {
     public AgentOperationDetails Resolve(AgentOperation operation)
     {
@@ -165,8 +191,8 @@ public class AgentOperationDetailsResolver(
         if (operation.ToolName == AgentToolNames.RevokeWorkspaceMember)
             return revokeWorkspaceMember.Resolve(operation);
 
-        if (operation.ToolName == AgentToolNames.ListBoxes)
-            return listBoxes.Resolve(operation);
+        if (operation.ToolName == AgentToolNames.ListWorkspaceBoxes)
+            return listWorkspaceBoxes.Resolve(operation);
 
         if (operation.ToolName == AgentToolNames.GetBox)
             return getBox.Resolve(operation);
@@ -206,6 +232,45 @@ public class AgentOperationDetailsResolver(
 
         if (operation.ToolName == AgentToolNames.RevokeBoxMember)
             return revokeBoxMember.Resolve(operation);
+
+        if (operation.ToolName == AgentToolNames.ListBoxes)
+            return listBoxes.Resolve(operation);
+
+        if (operation.ToolName == AgentToolNames.GetBoxDetails)
+            return getBoxDetails.Resolve(operation);
+
+        if (operation.ToolName == AgentToolNames.ListBoxContent)
+            return listBoxContent.Resolve(operation);
+
+        if (operation.ToolName == AgentToolNames.ReadBoxFile)
+            return readBoxFile.Resolve(operation);
+
+        if (operation.ToolName == AgentToolNames.GetBoxFileDownloadLink)
+            return getBoxFileDownloadLink.Resolve(operation);
+
+        if (operation.ToolName == AgentToolNames.GetBoxBulkDownloadLink)
+            return getBoxBulkDownloadLink.Resolve(operation);
+
+        if (operation.ToolName == AgentToolNames.SearchBox)
+            return searchBox.Resolve(operation);
+
+        if (operation.ToolName == AgentToolNames.CreateBoxFolder)
+            return createBoxFolder.Resolve(operation);
+
+        if (operation.ToolName == AgentToolNames.CreateBoxFile)
+            return createBoxFile.Resolve(operation);
+
+        if (operation.ToolName == AgentToolNames.RenameBoxFile)
+            return renameBoxFile.Resolve(operation);
+
+        if (operation.ToolName == AgentToolNames.RenameBoxFolder)
+            return renameBoxFolder.Resolve(operation);
+
+        if (operation.ToolName == AgentToolNames.MoveBoxItems)
+            return moveBoxItems.Resolve(operation);
+
+        if (operation.ToolName == AgentToolNames.DeleteBoxItems)
+            return deleteBoxItems.Resolve(operation);
 
         throw new InvalidOperationException(
             $"No details resolver for tool '{operation.ToolName}'.");

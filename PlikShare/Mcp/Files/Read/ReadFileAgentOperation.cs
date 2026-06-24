@@ -57,10 +57,10 @@ public class ReadFileAgentOperation(
         var workspace = membership.Workspace;
         workspace.ThrowIfFullyEncrypted();
 
-        if (!IsLikelyText(file.ContentType, file.Extension))
+        if (!AgentTextFileReader.IsLikelyText(file.ContentType, file.Extension))
             throw new McpException(
                 $"File '{file.Name}' (content type '{file.ContentType}', extension '{file.Extension}') is not a " +
-                $"text file. read_file returns UTF-8 text only — use get_file for its metadata.");
+                $"text file. read_file returns UTF-8 text only - use get_file for its metadata.");
 
         var offset = parameters.Offset;
 
@@ -139,7 +139,7 @@ public class ReadFileAgentOperation(
 
         var isEndOfFile = range.End >= totalSize - 1;
 
-        var (start, end) = ComputeUtf8Boundaries(
+        var (start, end) = AgentTextFileReader.ComputeUtf8Boundaries(
             raw,
             atFileStart: offset == 0,
             isEndOfFile: isEndOfFile);
@@ -148,12 +148,12 @@ public class ReadFileAgentOperation(
 
         try
         {
-            content = StrictUtf8.GetString(raw, start, end - start);
+            content = AgentTextFileReader.StrictUtf8.GetString(raw, start, end - start);
         }
         catch (DecoderFallbackException)
         {
             throw new McpException(
-                $"File '{file.Name}' (extension '{file.Extension}') could not be decoded as UTF-8 text — " +
+                $"File '{file.Name}' (extension '{file.Extension}') could not be decoded as UTF-8 text - " +
                 $"it appears to be binary.");
         }
 
@@ -193,95 +193,4 @@ public class ReadFileAgentOperation(
             cancellationToken);
     }
 
-    private static readonly UTF8Encoding StrictUtf8 = new(
-        encoderShouldEmitUTF8Identifier: false,
-        throwOnInvalidBytes: true);
-
-    private static (int Start, int End) ComputeUtf8Boundaries(
-        byte[] bytes,
-        bool atFileStart,
-        bool isEndOfFile)
-    {
-        var start = 0;
-
-        if (!atFileStart)
-        {
-            while (start < bytes.Length && (bytes[start] & 0xC0) == 0x80)
-                start++;
-        }
-
-        var end = bytes.Length;
-
-        if (!isEndOfFile)
-            end = TrimIncompleteTrailingSequence(bytes, start, bytes.Length);
-
-        return (start, end);
-    }
-
-    private static int TrimIncompleteTrailingSequence(byte[] bytes, int start, int end)
-    {
-        var i = end - 1;
-
-        while (i >= start && (bytes[i] & 0xC0) == 0x80)
-            i--;
-
-        if (i < start)
-            return end;
-
-        var lead = bytes[i];
-
-        var sequenceLength =
-            lead < 0x80 ? 1 :
-            (lead & 0xE0) == 0xC0 ? 2 :
-            (lead & 0xF0) == 0xE0 ? 3 :
-            (lead & 0xF8) == 0xF0 ? 4 :
-            1;
-
-        var available = end - i;
-
-        return available >= sequenceLength
-            ? end
-            : i;
-    }
-
-    private static readonly HashSet<string> TextApplicationTypes = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "application/json", "application/ld+json", "application/xml", "application/xhtml+xml",
-        "application/javascript", "application/ecmascript", "application/x-javascript",
-        "application/yaml", "application/x-yaml", "application/x-ndjson",
-        "application/csv", "application/sql", "application/graphql", "application/toml",
-        "image/svg+xml"
-    };
-
-    private static readonly HashSet<string> TextExtensions = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "txt", "text", "md", "markdown", "rst", "adoc", "tex",
-        "json", "jsonl", "ndjson", "xml", "html", "htm", "csv", "tsv",
-        "yaml", "yml", "toml", "ini", "cfg", "conf", "env", "properties", "log",
-        "js", "mjs", "cjs", "ts", "tsx", "jsx", "css", "scss", "less", "vue", "svelte",
-        "py", "rb", "go", "rs", "java", "kt", "kts", "c", "h", "cpp", "hpp", "cc", "cs",
-        "php", "sh", "bash", "zsh", "ps1", "sql", "graphql", "gql",
-        "r", "lua", "pl", "swift", "dart", "scala", "clj", "ex", "exs"
-    };
-
-    private static bool IsLikelyText(string contentType, string extension)
-    {
-        var contentTypeValue = (contentType ?? string.Empty).Trim();
-
-        if (contentTypeValue.StartsWith("text/", StringComparison.OrdinalIgnoreCase))
-            return true;
-
-        var semicolon = contentTypeValue.IndexOf(';');
-
-        var bareContentType = semicolon >= 0
-            ? contentTypeValue[..semicolon].Trim()
-            : contentTypeValue;
-
-        if (TextApplicationTypes.Contains(bareContentType))
-            return true;
-
-        var bareExtension = (extension ?? string.Empty).TrimStart('.').Trim();
-
-        return TextExtensions.Contains(bareExtension);
-    }
 }

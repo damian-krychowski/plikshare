@@ -15,7 +15,7 @@ public class ListStoragesTool
     [Description("Lists the storages this agent can use to create workspaces, with their external ids, names " +
                  "and encryption types. Pass a returned storageExternalId to create_workspace. Storages with " +
                  "full client-side encryption are omitted because agents cannot use them. If this tool requires " +
-                 "approval the call returns status 'waits_for_approval' with an approvalRequestId — poll " +
+                 "approval the call returns status 'waits_for_approval' with an approvalRequestId - poll " +
                  "check_approvals and, once approved, call execute_operation to run it.")]
     public static async Task<AgentToolResponse> Execute(
         IHttpContextAccessor httpContextAccessor,

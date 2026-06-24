@@ -3,10 +3,23 @@ using ModelContextProtocol;
 using PlikShare.Agents.Operations;
 using PlikShare.Agents.Tools;
 using PlikShare.Core.Utils;
+using PlikShare.Mcp.BoxAccess.BulkDownloadLink;
+using PlikShare.Mcp.BoxAccess.Content;
+using PlikShare.Mcp.BoxAccess.CreateFile;
+using PlikShare.Mcp.BoxAccess.CreateFolder;
+using PlikShare.Mcp.BoxAccess.Delete;
+using PlikShare.Mcp.BoxAccess.DownloadLink;
+using PlikShare.Mcp.BoxAccess.GetDetails;
+using PlikShare.Mcp.BoxAccess.List;
+using PlikShare.Mcp.BoxAccess.MoveItems;
+using PlikShare.Mcp.BoxAccess.ReadFile;
+using PlikShare.Mcp.BoxAccess.RenameFile;
+using PlikShare.Mcp.BoxAccess.RenameFolder;
+using PlikShare.Mcp.BoxAccess.Search;
 using PlikShare.Mcp.Boxes.Create;
 using PlikShare.Mcp.Boxes.Delete;
 using PlikShare.Mcp.Boxes.Get;
-using PlikShare.Mcp.Boxes.List;
+using PlikShare.Mcp.Boxes.ListWorkspaceBoxes;
 using PlikShare.Mcp.Boxes.Members.Invite;
 using PlikShare.Mcp.Boxes.Members.List;
 using PlikShare.Mcp.Boxes.Members.Revoke;
@@ -77,7 +90,7 @@ public class AgentOperationDispatcher(
     InviteWorkspaceMembersAgentOperation inviteWorkspaceMembersOperation,
     UpdateWorkspaceMemberPermissionsAgentOperation updateWorkspaceMemberPermissionsOperation,
     RevokeWorkspaceMemberAgentOperation revokeWorkspaceMemberOperation,
-    ListBoxesAgentOperation listBoxesOperation,
+    ListWorkspaceBoxesAgentOperation listWorkspaceBoxesOperation,
     GetBoxAgentOperation getBoxOperation,
     CreateBoxAgentOperation createBoxOperation,
     UpdateBoxAgentOperation updateBoxOperation,
@@ -90,7 +103,20 @@ public class AgentOperationDispatcher(
     ListBoxMembersAgentOperation listBoxMembersOperation,
     InviteBoxMembersAgentOperation inviteBoxMembersOperation,
     UpdateBoxMemberPermissionsAgentOperation updateBoxMemberPermissionsOperation,
-    RevokeBoxMemberAgentOperation revokeBoxMemberOperation)
+    RevokeBoxMemberAgentOperation revokeBoxMemberOperation,
+    ListBoxesAgentOperation listBoxesOperation,
+    GetBoxDetailsAgentOperation getBoxDetailsOperation,
+    ListBoxContentAgentOperation listBoxContentOperation,
+    ReadBoxFileAgentOperation readBoxFileOperation,
+    GetBoxFileDownloadLinkAgentOperation getBoxFileDownloadLinkOperation,
+    GetBoxBulkDownloadLinkAgentOperation getBoxBulkDownloadLinkOperation,
+    SearchBoxAgentOperation searchBoxOperation,
+    CreateBoxFolderAgentOperation createBoxFolderOperation,
+    CreateBoxFileAgentOperation createBoxFileOperation,
+    RenameBoxFileAgentOperation renameBoxFileOperation,
+    RenameBoxFolderAgentOperation renameBoxFolderOperation,
+    MoveBoxItemsAgentOperation moveBoxItemsOperation,
+    DeleteBoxItemsAgentOperation deleteBoxItemsOperation)
 {
     public AgentOperationPlan Plan(
         HttpContext httpContext,
@@ -445,16 +471,16 @@ public class AgentOperationDispatcher(
                             cancellationToken);
                     });
 
-            case AgentToolNames.ListBoxes:
+            case AgentToolNames.ListWorkspaceBoxes:
                 // Idempotent read: the execute flow simply re-lists.
                 return new AgentOperationPlan(
                     PersistsResult: false,
                     Execute: async cancellationToken =>
                     {
-                        var parameters = Json.Deserialize<ListBoxesParams>(operation.ParamsJson)
+                        var parameters = Json.Deserialize<ListWorkspaceBoxesParams>(operation.ParamsJson)
                             ?? throw new McpException("The stored operation parameters were invalid.");
 
-                        return await listBoxesOperation.Execute(
+                        return await listWorkspaceBoxesOperation.Execute(
                             httpContext,
                             parameters,
                             cancellationToken);
@@ -642,6 +668,188 @@ public class AgentOperationDispatcher(
                             ?? throw new McpException("The stored operation parameters were invalid.");
 
                         return await revokeBoxMemberOperation.Execute(
+                            httpContext,
+                            parameters,
+                            cancellationToken);
+                    });
+
+            case AgentToolNames.ListBoxes:
+                // Idempotent read with no parameters: the execute flow simply re-lists.
+                return new AgentOperationPlan(
+                    PersistsResult: false,
+                    Execute: async cancellationToken => await listBoxesOperation.Execute(
+                        httpContext,
+                        cancellationToken));
+
+            case AgentToolNames.GetBoxDetails:
+                // Idempotent read: the execute flow simply re-reads.
+                return new AgentOperationPlan(
+                    PersistsResult: false,
+                    Execute: async cancellationToken =>
+                    {
+                        var parameters = Json.Deserialize<GetBoxDetailsParams>(operation.ParamsJson)
+                            ?? throw new McpException("The stored operation parameters were invalid.");
+
+                        return await getBoxDetailsOperation.Execute(
+                            httpContext,
+                            parameters,
+                            cancellationToken);
+                    });
+
+            case AgentToolNames.ListBoxContent:
+                // Idempotent read: the execute flow simply re-lists.
+                return new AgentOperationPlan(
+                    PersistsResult: false,
+                    Execute: async cancellationToken =>
+                    {
+                        var parameters = Json.Deserialize<ListBoxContentParams>(operation.ParamsJson)
+                            ?? throw new McpException("The stored operation parameters were invalid.");
+
+                        return await listBoxContentOperation.Execute(
+                            httpContext,
+                            parameters,
+                            cancellationToken);
+                    });
+
+            case AgentToolNames.ReadBoxFile:
+                // Idempotent read: the execute flow simply re-reads.
+                return new AgentOperationPlan(
+                    PersistsResult: false,
+                    Execute: async cancellationToken =>
+                    {
+                        var parameters = Json.Deserialize<ReadBoxFileParams>(operation.ParamsJson)
+                            ?? throw new McpException("The stored operation parameters were invalid.");
+
+                        return await readBoxFileOperation.Execute(
+                            httpContext,
+                            parameters,
+                            cancellationToken);
+                    });
+
+            case AgentToolNames.GetBoxFileDownloadLink:
+                // Idempotent read: each execute mints a fresh link, so the result is not persisted.
+                return new AgentOperationPlan(
+                    PersistsResult: false,
+                    Execute: async cancellationToken =>
+                    {
+                        var parameters = Json.Deserialize<GetBoxFileDownloadLinkParams>(operation.ParamsJson)
+                            ?? throw new McpException("The stored operation parameters were invalid.");
+
+                        return await getBoxFileDownloadLinkOperation.Execute(
+                            httpContext,
+                            parameters,
+                            cancellationToken);
+                    });
+
+            case AgentToolNames.GetBoxBulkDownloadLink:
+                // Idempotent read: each execute mints a fresh link, so the result is not persisted.
+                return new AgentOperationPlan(
+                    PersistsResult: false,
+                    Execute: async cancellationToken =>
+                    {
+                        var parameters = Json.Deserialize<GetBoxBulkDownloadLinkParams>(operation.ParamsJson)
+                            ?? throw new McpException("The stored operation parameters were invalid.");
+
+                        return await getBoxBulkDownloadLinkOperation.Execute(
+                            httpContext,
+                            parameters,
+                            cancellationToken);
+                    });
+
+            case AgentToolNames.SearchBox:
+                // Idempotent read: the execute flow simply re-searches.
+                return new AgentOperationPlan(
+                    PersistsResult: false,
+                    Execute: async cancellationToken =>
+                    {
+                        var parameters = Json.Deserialize<SearchBoxParams>(operation.ParamsJson)
+                            ?? throw new McpException("The stored operation parameters were invalid.");
+
+                        return await searchBoxOperation.Execute(
+                            httpContext,
+                            parameters,
+                            cancellationToken);
+                    });
+
+            case AgentToolNames.CreateBoxFolder:
+                return new AgentOperationPlan(
+                    PersistsResult: true,
+                    Execute: async cancellationToken =>
+                    {
+                        var parameters = Json.Deserialize<CreateBoxFolderParams>(operation.ParamsJson)
+                            ?? throw new McpException("The stored operation parameters were invalid.");
+
+                        return await createBoxFolderOperation.Execute(
+                            httpContext,
+                            parameters,
+                            cancellationToken);
+                    });
+
+            case AgentToolNames.CreateBoxFile:
+                return new AgentOperationPlan(
+                    PersistsResult: true,
+                    Execute: async cancellationToken =>
+                    {
+                        var parameters = Json.Deserialize<CreateBoxFileParams>(operation.ParamsJson)
+                            ?? throw new McpException("The stored operation parameters were invalid.");
+
+                        return await createBoxFileOperation.Execute(
+                            httpContext,
+                            parameters,
+                            cancellationToken);
+                    });
+
+            case AgentToolNames.RenameBoxFile:
+                return new AgentOperationPlan(
+                    PersistsResult: true,
+                    Execute: async cancellationToken =>
+                    {
+                        var parameters = Json.Deserialize<RenameBoxFileParams>(operation.ParamsJson)
+                            ?? throw new McpException("The stored operation parameters were invalid.");
+
+                        return await renameBoxFileOperation.Execute(
+                            httpContext,
+                            parameters,
+                            cancellationToken);
+                    });
+
+            case AgentToolNames.RenameBoxFolder:
+                return new AgentOperationPlan(
+                    PersistsResult: true,
+                    Execute: async cancellationToken =>
+                    {
+                        var parameters = Json.Deserialize<RenameBoxFolderParams>(operation.ParamsJson)
+                            ?? throw new McpException("The stored operation parameters were invalid.");
+
+                        return await renameBoxFolderOperation.Execute(
+                            httpContext,
+                            parameters,
+                            cancellationToken);
+                    });
+
+            case AgentToolNames.MoveBoxItems:
+                return new AgentOperationPlan(
+                    PersistsResult: true,
+                    Execute: async cancellationToken =>
+                    {
+                        var parameters = Json.Deserialize<MoveBoxItemsParams>(operation.ParamsJson)
+                            ?? throw new McpException("The stored operation parameters were invalid.");
+
+                        return await moveBoxItemsOperation.Execute(
+                            httpContext,
+                            parameters,
+                            cancellationToken);
+                    });
+
+            case AgentToolNames.DeleteBoxItems:
+                return new AgentOperationPlan(
+                    PersistsResult: true,
+                    Execute: async cancellationToken =>
+                    {
+                        var parameters = Json.Deserialize<DeleteBoxItemsParams>(operation.ParamsJson)
+                            ?? throw new McpException("The stored operation parameters were invalid.");
+
+                        return await deleteBoxItemsOperation.Execute(
                             httpContext,
                             parameters,
                             cancellationToken);

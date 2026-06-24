@@ -243,23 +243,35 @@
 
             @if(agentVal.sharedBoxes.length > 0) {
                 @for(box of agentVal.sharedBoxes; track box.boxExternalId) {
-                    <div class="item">
-                        <i class="icon icon-xl icon-nucleo-box"></i>
+                    <div class="item-bar item-bar--clickable flex-row"
+                        (click)="openBox(box)">
 
-                        <div class="item__details">
-                            <div class="item__title">
-                                {{ box.boxName }}
-                            </div>
+                        <div class="item">
+                            <i class="icon icon-xl icon-nucleo-box"></i>
 
-                            <div class="item__subtitle">
-                                {{ box.workspaceName }} · {{ box.owner.email }}
+                            <div class="item__details">
+                                <div class="item__title">
+                                    {{ box.boxName }}
+                                </div>
+
+                                <div class="item__subtitle">
+                                    {{ box.workspaceName }} · {{ box.owner.email }}
+                                </div>
                             </div>
                         </div>
 
-                        <div class="flex-row flex-gap-05 ml-auto">
+                        <div class="item-bar__actions" (click)="$event.stopPropagation()">
+                            @if(box.overriddenToolsCount > 0) {
+                                <span class="agent-details__tools-count"
+                                    matTooltip="{{ box.overriddenToolsCount }} tool override{{ box.overriddenToolsCount === 1 ? '' : 's' }} for this box"
+                                    matTooltipPosition="above">
+                                    {{ box.overriddenToolsCount }}
+                                </span>
+                            }
+
                             <app-action-btn
-                                tooltip="{{ box.overriddenToolsCount > 0 ? 'Tool overrides (' + box.overriddenToolsCount + ')' : 'Tool overrides' }}"
-                                icon="icon-nucleo-settings"
+                                tooltip="Tool overrides"
+                                icon="icon-nucleo-tools"
                                 (clicked)="openBoxToolsDialog(box)">
                             </app-action-btn>
 

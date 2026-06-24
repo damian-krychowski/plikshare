@@ -9,7 +9,7 @@ import { DeleteBoxOperationDetails } from '../../../services/agents.api';
     template: `
         @if(details().boxName) {
             <div class="op-details__section-title">
-                Box — delete
+                Box - delete
             </div>
 
             <div class="op-details__item">

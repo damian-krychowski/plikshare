@@ -18,7 +18,7 @@ public class CreateFolderTool
     [McpServerTool(Name = AgentToolNames.CreateFolder)]
     [Description("Creates a new folder in a workspace the agent has access to. Pass parentFolderExternalId " +
                  "to create a subfolder, or leave it empty to create a top-level folder. If this tool requires " +
-                 "approval the call returns status 'waits_for_approval' with an approvalRequestId — poll " +
+                 "approval the call returns status 'waits_for_approval' with an approvalRequestId - poll " +
                  "check_approvals and, once approved, call execute_operation to run it.")]
     public static async Task<AgentToolResponse> Execute(
         IHttpContextAccessor httpContextAccessor,

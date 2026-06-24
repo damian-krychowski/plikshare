@@ -31,7 +31,7 @@ public class agent_tool_config_tests : TestFixture
         var result = await Api.Agents.GetTools(agent.ExternalId, AppOwner.Cookie);
 
         //then
-        result.Tools.Should().HaveCount(39);
+        result.Tools.Should().HaveCount(52);
 
         // Inviting people grants humans access and sends email, so it requires approval by default.
         var inviteWorkspaceMembers = result.Tools.Single(t => t.Name == "invite_workspace_members");

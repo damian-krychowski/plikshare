@@ -19,7 +19,7 @@ public class GetBulkDownloadLinkTool
                  "as a single ZIP archive, to hand to a user. Folders are included with all their contents. " +
                  "Provide at least one id in fileExternalIds or folderExternalIds. Anyone with the link can " +
                  "download without logging in until it expires, so keep the expiry short. If this tool requires " +
-                 "approval the call returns status 'waits_for_approval' with an approvalRequestId — poll " +
+                 "approval the call returns status 'waits_for_approval' with an approvalRequestId - poll " +
                  "check_approvals and, once approved, call execute_operation to run it.")]
     public static async Task<AgentToolResponse> Execute(
         IHttpContextAccessor httpContextAccessor,

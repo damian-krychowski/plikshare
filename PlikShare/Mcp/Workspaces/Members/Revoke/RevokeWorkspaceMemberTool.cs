@@ -18,7 +18,7 @@ public class RevokeWorkspaceMemberTool
     [Description("Removes a member from a workspace the agent can access, revoking their access. Works for " +
                  "both accepted members and pending invitations. Use list_workspace_members to find a " +
                  "member's external id. If this tool requires approval the call returns status " +
-                 "'waits_for_approval' with an approvalRequestId — poll check_approvals and, once approved, " +
+                 "'waits_for_approval' with an approvalRequestId - poll check_approvals and, once approved, " +
                  "call execute_operation to run it.")]
     public static async Task<AgentToolResponse> Execute(
         IHttpContextAccessor httpContextAccessor,

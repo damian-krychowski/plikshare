@@ -1,8 +1,21 @@
 using System.Text.Json.Serialization;
+using PlikShare.Mcp.BoxAccess.BulkDownloadLink.Contracts;
+using PlikShare.Mcp.BoxAccess.Content.Contracts;
+using PlikShare.Mcp.BoxAccess.CreateFile.Contracts;
+using PlikShare.Mcp.BoxAccess.CreateFolder.Contracts;
+using PlikShare.Mcp.BoxAccess.Delete.Contracts;
+using PlikShare.Mcp.BoxAccess.DownloadLink.Contracts;
+using PlikShare.Mcp.BoxAccess.GetDetails.Contracts;
+using PlikShare.Mcp.BoxAccess.List.Contracts;
+using PlikShare.Mcp.BoxAccess.MoveItems.Contracts;
+using PlikShare.Mcp.BoxAccess.ReadFile.Contracts;
+using PlikShare.Mcp.BoxAccess.RenameFile.Contracts;
+using PlikShare.Mcp.BoxAccess.RenameFolder.Contracts;
+using PlikShare.Mcp.BoxAccess.Search.Contracts;
 using PlikShare.Mcp.Boxes.Create.Contracts;
 using PlikShare.Mcp.Boxes.Delete.Contracts;
 using PlikShare.Mcp.Boxes.Get.Contracts;
-using PlikShare.Mcp.Boxes.List.Contracts;
+using PlikShare.Mcp.Boxes.ListWorkspaceBoxes.Contracts;
 using PlikShare.Mcp.Boxes.Members.Invite.Contracts;
 using PlikShare.Mcp.Boxes.Members.List.Contracts;
 using PlikShare.Mcp.Boxes.Members.Revoke.Contracts;
@@ -66,7 +79,7 @@ namespace PlikShare.Agents.Operations.Details.Contracts;
 [JsonDerivedType(derivedType: typeof(InviteWorkspaceMembersOperationDetails), typeDiscriminator: InviteWorkspaceMembersOperationDetails.TypeDiscriminator)]
 [JsonDerivedType(derivedType: typeof(UpdateWorkspaceMemberPermissionsOperationDetails), typeDiscriminator: UpdateWorkspaceMemberPermissionsOperationDetails.TypeDiscriminator)]
 [JsonDerivedType(derivedType: typeof(RevokeWorkspaceMemberOperationDetails), typeDiscriminator: RevokeWorkspaceMemberOperationDetails.TypeDiscriminator)]
-[JsonDerivedType(derivedType: typeof(ListBoxesOperationDetails), typeDiscriminator: ListBoxesOperationDetails.TypeDiscriminator)]
+[JsonDerivedType(derivedType: typeof(ListWorkspaceBoxesOperationDetails), typeDiscriminator: ListWorkspaceBoxesOperationDetails.TypeDiscriminator)]
 [JsonDerivedType(derivedType: typeof(GetBoxOperationDetails), typeDiscriminator: GetBoxOperationDetails.TypeDiscriminator)]
 [JsonDerivedType(derivedType: typeof(CreateBoxOperationDetails), typeDiscriminator: CreateBoxOperationDetails.TypeDiscriminator)]
 [JsonDerivedType(derivedType: typeof(UpdateBoxOperationDetails), typeDiscriminator: UpdateBoxOperationDetails.TypeDiscriminator)]
@@ -80,6 +93,19 @@ namespace PlikShare.Agents.Operations.Details.Contracts;
 [JsonDerivedType(derivedType: typeof(InviteBoxMembersOperationDetails), typeDiscriminator: InviteBoxMembersOperationDetails.TypeDiscriminator)]
 [JsonDerivedType(derivedType: typeof(UpdateBoxMemberPermissionsOperationDetails), typeDiscriminator: UpdateBoxMemberPermissionsOperationDetails.TypeDiscriminator)]
 [JsonDerivedType(derivedType: typeof(RevokeBoxMemberOperationDetails), typeDiscriminator: RevokeBoxMemberOperationDetails.TypeDiscriminator)]
+[JsonDerivedType(derivedType: typeof(ListBoxesOperationDetails), typeDiscriminator: ListBoxesOperationDetails.TypeDiscriminator)]
+[JsonDerivedType(derivedType: typeof(GetBoxDetailsOperationDetails), typeDiscriminator: GetBoxDetailsOperationDetails.TypeDiscriminator)]
+[JsonDerivedType(derivedType: typeof(ListBoxContentOperationDetails), typeDiscriminator: ListBoxContentOperationDetails.TypeDiscriminator)]
+[JsonDerivedType(derivedType: typeof(ReadBoxFileOperationDetails), typeDiscriminator: ReadBoxFileOperationDetails.TypeDiscriminator)]
+[JsonDerivedType(derivedType: typeof(GetBoxFileDownloadLinkOperationDetails), typeDiscriminator: GetBoxFileDownloadLinkOperationDetails.TypeDiscriminator)]
+[JsonDerivedType(derivedType: typeof(GetBoxBulkDownloadLinkOperationDetails), typeDiscriminator: GetBoxBulkDownloadLinkOperationDetails.TypeDiscriminator)]
+[JsonDerivedType(derivedType: typeof(SearchBoxOperationDetails), typeDiscriminator: SearchBoxOperationDetails.TypeDiscriminator)]
+[JsonDerivedType(derivedType: typeof(CreateBoxFolderOperationDetails), typeDiscriminator: CreateBoxFolderOperationDetails.TypeDiscriminator)]
+[JsonDerivedType(derivedType: typeof(CreateBoxFileOperationDetails), typeDiscriminator: CreateBoxFileOperationDetails.TypeDiscriminator)]
+[JsonDerivedType(derivedType: typeof(RenameBoxFileOperationDetails), typeDiscriminator: RenameBoxFileOperationDetails.TypeDiscriminator)]
+[JsonDerivedType(derivedType: typeof(RenameBoxFolderOperationDetails), typeDiscriminator: RenameBoxFolderOperationDetails.TypeDiscriminator)]
+[JsonDerivedType(derivedType: typeof(MoveBoxItemsOperationDetails), typeDiscriminator: MoveBoxItemsOperationDetails.TypeDiscriminator)]
+[JsonDerivedType(derivedType: typeof(DeleteBoxItemsOperationDetails), typeDiscriminator: DeleteBoxItemsOperationDetails.TypeDiscriminator)]
 public abstract class AgentOperationDetails
 {
 }

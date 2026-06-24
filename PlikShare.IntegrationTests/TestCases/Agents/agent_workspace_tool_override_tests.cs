@@ -37,7 +37,7 @@ public class agent_workspace_tool_override_tests : TestFixture
         result.Tools.Should().NotContain(t => t.Name == "list_workspaces");
         result.Tools.Should().Contain(t => t.Name == "bulk_delete");
         result.Tools.Select(t => t.Name).Should().Contain(
-            ["list_boxes", "get_box", "create_box", "update_box", "delete_box"]);
+            ["list_workspace_boxes", "get_box", "create_box", "update_box", "delete_box"]);
         result.Tools.Select(t => t.Name).Should().Contain(
             ["list_box_links", "create_box_link", "update_box_link", "delete_box_link", "regenerate_box_link_access_code"]);
         result.Tools.Select(t => t.Name).Should().Contain(

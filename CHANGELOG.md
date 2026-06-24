@@ -2,6 +2,12 @@
 
 Release notes for PlikShare.
 
+## 1.2.3
+
+- [FEATURE] Box access for agents - an agent invited directly to a box (the same way you invite a person) can now work inside it as a consumer, scoped to that box's folder: discover its boxes (`list_boxes`), read box details and content, read files, mint single-file and ZIP download links, search, create folders and files, rename, move and delete items. Destructive deletes require approval by default and flow through the Agent requests inbox. The management tool that listed a workspace's boxes is renamed `list_workspace_boxes`, freeing `list_boxes` for this discovery
+- [IMPROVEMENT] Agent details "Default tools" reorganised into collapsible Instance / Workspace / Box groups, each with a short description and enabled/approval/disabled counters; box rows are now clickable through to the box, like the workspace rows
+- [IMPROVEMENT] Agents find their access more reliably - the MCP server tells a connecting agent it has two separate access surfaces (workspaces and directly-shared boxes) and to check both, and an empty `list_workspaces` or `list_boxes` result now points at the other instead of reading as "no access"
+
 ## 1.2.2
 
 - [FIX] Uploading through a public box link no longer redirects the visitor to the sign-in screen — lock-status now uses the box-link token

@@ -7,7 +7,7 @@ import { ListBoxesOperationDetails } from '../../../services/agents.api';
     imports: [],
     template: `
         <div class="explanation">
-            Lists all boxes of the workspace.
+            Lists the boxes shared directly with the agent.
         </div>
     `
 })

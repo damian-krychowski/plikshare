@@ -19,7 +19,7 @@ public class CreateBoxLinkTool
                  "and its access code can interact with the box according to the link's permissions (by " +
                  "default: list only). Use update_box_link afterwards to grant download, upload and other " +
                  "permissions. Returns the link's external id and access code. If this tool requires approval " +
-                 "the call returns status 'waits_for_approval' with an approvalRequestId — poll check_approvals " +
+                 "the call returns status 'waits_for_approval' with an approvalRequestId - poll check_approvals " +
                  "and, once approved, call execute_operation to run it.")]
     public static async Task<AgentToolResponse> Execute(
         IHttpContextAccessor httpContextAccessor,

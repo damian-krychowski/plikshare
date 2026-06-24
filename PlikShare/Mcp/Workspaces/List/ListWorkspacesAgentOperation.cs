@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Http;
 using PlikShare.Agents.Middleware;
+using PlikShare.Agents.Tools;
 using PlikShare.AuditLog;
 using PlikShare.Mcp.Workspaces.List.Contracts;
 using Audit = PlikShare.AuditLog.Details.Audit;
@@ -31,7 +32,11 @@ public class ListWorkspacesAgentOperation(
 
         return new ListWorkspacesResponseDto
         {
-            Workspaces = workspaces
+            Workspaces = workspaces,
+            Hint = workspaces.Count == 0
+                ? "You are not a member of any workspace. You may still have direct access to individual " +
+                  $"boxes, which are separate from workspaces - call {AgentToolNames.ListBoxes} to check."
+                : null
         };
     }
 }

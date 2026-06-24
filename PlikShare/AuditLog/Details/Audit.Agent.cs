@@ -236,6 +236,26 @@ public static partial class Audit
                 Count = count })
         };
 
+        public class AccessibleBoxesListed
+        {
+            public required int Count { get; init; }
+        }
+
+        public static AuditLogEntry AccessibleBoxesListedEntry(
+            AuditLogActorContext actor,
+            int count) => new()
+        {
+            Actor = actor.Identity,
+            ActorEmail = actor.Email,
+            ActorIp = actor.Ip,
+            CorrelationId = actor.CorrelationId,
+            EventCategory = AuditLogEventCategories.Agent,
+            EventType = AuditLogEventTypes.Agent.AccessibleBoxesListed,
+            Severity = AuditLogSeverities.Info,
+            DetailsJson = Json.Serialize(new AccessibleBoxesListed {
+                Count = count })
+        };
+
         public class StoragesListed
         {
             public required int Count { get; init; }

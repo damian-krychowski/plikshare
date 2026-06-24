@@ -111,14 +111,16 @@ public class agent_box_access_tests : TestFixture
         var result = await Api.Agents.GetBoxTools(agent.ExternalId, box.ExternalId, AppOwner.Cookie);
 
         //then
-        result.Tools.Should().HaveCount(36);
+        result.Tools.Should().HaveCount(12);
+        // Per-box config governs box-access tools only — workspace/instance tools never appear here.
         result.Tools.Should().NotContain(t => t.Name == "list_workspaces");
+        result.Tools.Should().NotContain(t => t.Name == "bulk_delete");
 
-        var bulkDelete = result.Tools.Single(t => t.Name == "bulk_delete");
-        bulkDelete.OverrideIsEnabled.Should().BeNull();
-        bulkDelete.OverrideRequiresApproval.Should().BeNull();
-        bulkDelete.EffectiveIsEnabled.Should().Be(bulkDelete.GlobalIsEnabled);
-        bulkDelete.EffectiveRequiresApproval.Should().Be(bulkDelete.GlobalRequiresApproval);
+        var deleteItems = result.Tools.Single(t => t.Name == "delete_box_items");
+        deleteItems.OverrideIsEnabled.Should().BeNull();
+        deleteItems.OverrideRequiresApproval.Should().BeNull();
+        deleteItems.EffectiveIsEnabled.Should().Be(deleteItems.GlobalIsEnabled);
+        deleteItems.EffectiveRequiresApproval.Should().Be(deleteItems.GlobalRequiresApproval);
     }
 
     [Fact]
@@ -128,23 +130,23 @@ public class agent_box_access_tests : TestFixture
         var agent = await CreateAgent();
         var box = await CreateBox(AppOwner);
 
-        //when — disable bulk_delete in this box, leave approval inheriting the global default (true)
+        //when — disable delete_box_items in this box, leave approval inheriting the global default (true)
         await Api.Agents.UpdateBoxToolOverride(
             externalId: agent.ExternalId,
             boxExternalId: box.ExternalId,
-            toolName: "bulk_delete",
+            toolName: "delete_box_items",
             request: new UpdateAgentBoxToolOverrideRequestDto { IsEnabled = false, RequiresApproval = null },
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery);
 
         //then
         var result = await Api.Agents.GetBoxTools(agent.ExternalId, box.ExternalId, AppOwner.Cookie);
-        var bulkDelete = result.Tools.Single(t => t.Name == "bulk_delete");
+        var deleteItems = result.Tools.Single(t => t.Name == "delete_box_items");
 
-        bulkDelete.OverrideIsEnabled.Should().BeFalse();
-        bulkDelete.OverrideRequiresApproval.Should().BeNull();
-        bulkDelete.EffectiveIsEnabled.Should().BeFalse();
-        bulkDelete.EffectiveRequiresApproval.Should().BeTrue();
+        deleteItems.OverrideIsEnabled.Should().BeFalse();
+        deleteItems.OverrideRequiresApproval.Should().BeNull();
+        deleteItems.EffectiveIsEnabled.Should().BeFalse();
+        deleteItems.EffectiveRequiresApproval.Should().BeTrue();
     }
 
     [Fact]
@@ -157,7 +159,7 @@ public class agent_box_access_tests : TestFixture
         await Api.Agents.UpdateBoxToolOverride(
             externalId: agent.ExternalId,
             boxExternalId: box.ExternalId,
-            toolName: "bulk_delete",
+            toolName: "delete_box_items",
             request: new UpdateAgentBoxToolOverrideRequestDto { IsEnabled = false, RequiresApproval = false },
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery);
@@ -166,17 +168,17 @@ public class agent_box_access_tests : TestFixture
         await Api.Agents.ResetBoxToolOverride(
             externalId: agent.ExternalId,
             boxExternalId: box.ExternalId,
-            toolName: "bulk_delete",
+            toolName: "delete_box_items",
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery);
 
         //then
         var result = await Api.Agents.GetBoxTools(agent.ExternalId, box.ExternalId, AppOwner.Cookie);
-        var bulkDelete = result.Tools.Single(t => t.Name == "bulk_delete");
+        var deleteItems = result.Tools.Single(t => t.Name == "delete_box_items");
 
-        bulkDelete.OverrideIsEnabled.Should().BeNull();
-        bulkDelete.OverrideRequiresApproval.Should().BeNull();
-        bulkDelete.EffectiveIsEnabled.Should().Be(bulkDelete.GlobalIsEnabled);
+        deleteItems.OverrideIsEnabled.Should().BeNull();
+        deleteItems.OverrideRequiresApproval.Should().BeNull();
+        deleteItems.EffectiveIsEnabled.Should().Be(deleteItems.GlobalIsEnabled);
     }
 
     [Fact]
@@ -196,7 +198,7 @@ public class agent_box_access_tests : TestFixture
         await Api.Agents.UpdateBoxToolOverride(
             externalId: agent.ExternalId,
             boxExternalId: box.ExternalId,
-            toolName: "bulk_delete",
+            toolName: "delete_box_items",
             request: new UpdateAgentBoxToolOverrideRequestDto { IsEnabled = false, RequiresApproval = null },
             cookie: AppOwner.Cookie,
             antiforgery: AppOwner.Antiforgery);

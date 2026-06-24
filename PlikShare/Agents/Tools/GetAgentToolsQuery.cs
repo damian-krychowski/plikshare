@@ -41,7 +41,12 @@ public class GetAgentToolsQuery(AgentCache agentCache)
         {
             Name = definition.Name,
             Description = definition.Description,
-            Scope = definition.Group == AgentToolGroup.Workspace ? "workspace" : "instance",
+            Scope = definition.Group switch
+            {
+                AgentToolGroup.Workspace => "workspace",
+                AgentToolGroup.Box => "box",
+                _ => "instance"
+            },
             Kind = ToKindString(definition.Kind),
             IsEnabled = effective.IsEnabled,
             RequiresApproval = effective.RequiresApproval,

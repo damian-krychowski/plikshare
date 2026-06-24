@@ -23,7 +23,7 @@ public class UpdateShareLinkTool
                  "nullable setting (expiry, max downloads, password) set its shouldUpdate* flag to true and " +
                  "provide the new value to set it, or set the flag to true and leave the value empty to clear " +
                  "it (no expiry / unlimited downloads / no password). If this tool requires approval the call " +
-                 "returns status 'waits_for_approval' with an approvalRequestId — poll check_approvals and, " +
+                 "returns status 'waits_for_approval' with an approvalRequestId - poll check_approvals and, " +
                  "once approved, call execute_operation to run it.")]
     public static async Task<AgentToolResponse> Execute(
         IHttpContextAccessor httpContextAccessor,

@@ -9,7 +9,7 @@ import { RevokeBoxMemberOperationDetails } from '../../../services/agents.api';
     template: `
         @if(details().memberEmail) {
             <div class="op-details__section-title">
-                Box member — remove
+                Box member - remove
             </div>
 
             <div class="op-details__meta">

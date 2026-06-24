@@ -18,7 +18,7 @@ public class GetShareLinkTool
     [Description("Returns the details of a single share link in a workspace the agent can access: its public " +
                  "URL, expiration, download limits, whether it is password protected, the agent that created " +
                  "it (if any), and exactly which files and folders are shared and excluded. If this tool " +
-                 "requires approval the call returns status 'waits_for_approval' with an approvalRequestId — " +
+                 "requires approval the call returns status 'waits_for_approval' with an approvalRequestId - " +
                  "poll check_approvals and, once approved, call execute_operation to run it.")]
     public static async Task<AgentToolResponse> Execute(
         IHttpContextAccessor httpContextAccessor,

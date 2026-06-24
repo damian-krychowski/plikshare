@@ -17,7 +17,7 @@ public class CreateWorkspaceTool
                  "the 'add workspace' permission and access to the storage. Use list_storages to discover " +
                  "the storages the agent can use. Storages with full client-side encryption are not " +
                  "supported. Returns the new workspace's external id. If this tool requires approval the " +
-                 "call returns status 'waits_for_approval' with an approvalRequestId — poll check_approvals " +
+                 "call returns status 'waits_for_approval' with an approvalRequestId - poll check_approvals " +
                  "and, once approved, call execute_operation to run it.")]
     public static async Task<AgentToolResponse> Execute(
         IHttpContextAccessor httpContextAccessor,

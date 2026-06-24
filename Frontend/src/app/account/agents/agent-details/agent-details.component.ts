@@ -340,6 +340,10 @@ export class AgentDetailsComponent implements OnInit, OnDestroy {
         }
     }
 
+    openBox(box: GetAgentDetailsResponse['sharedBoxes'][number]) {
+        this._router.navigate([`workspaces/${box.workspaceExternalId}/boxes/${box.boxExternalId}`]);
+    }
+
     openBoxToolsDialog(box: GetAgentDetailsResponse['sharedBoxes'][number]) {
         if (!this._agentExternalId)
             return;

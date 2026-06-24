@@ -16,9 +16,9 @@ public class RegenerateBoxLinkAccessCodeTool
 {
     [McpServerTool(Name = AgentToolNames.RegenerateBoxLinkAccessCode)]
     [Description("Regenerates the access code of a box link in a workspace the agent can access. This " +
-                 "immediately invalidates the link's current URL — anyone using the old code loses access. " +
+                 "immediately invalidates the link's current URL - anyone using the old code loses access. " +
                  "Returns the new access code. If this tool requires approval the call returns status " +
-                 "'waits_for_approval' with an approvalRequestId — poll check_approvals and, once approved, " +
+                 "'waits_for_approval' with an approvalRequestId - poll check_approvals and, once approved, " +
                  "call execute_operation to run it.")]
     public static async Task<AgentToolResponse> Execute(
         IHttpContextAccessor httpContextAccessor,

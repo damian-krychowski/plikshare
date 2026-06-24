@@ -16,9 +16,9 @@ public class DeleteBoxTool
 {
     [McpServerTool(Name = AgentToolNames.DeleteBox)]
     [Description("Deletes a box in a workspace the agent can access, together with its links and members. " +
-                 "The underlying folder and its files are not deleted. Use list_boxes to find a box's " +
+                 "The underlying folder and its files are not deleted. Use list_workspace_boxes to find a box's " +
                  "external id. If this tool requires approval the call returns status 'waits_for_approval' " +
-                 "with an approvalRequestId — poll check_approvals and, once approved, call execute_operation " +
+                 "with an approvalRequestId - poll check_approvals and, once approved, call execute_operation " +
                  "to run it.")]
     public static async Task<AgentToolResponse> Execute(
         IHttpContextAccessor httpContextAccessor,

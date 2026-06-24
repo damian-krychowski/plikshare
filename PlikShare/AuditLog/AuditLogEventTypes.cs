@@ -241,6 +241,7 @@ public static class AuditLogEventTypes
         public const string BulkDownloadLinkGenerated = "agent.bulk-download-link-generated";
         public const string SearchPerformed = "agent.search-performed";
         public const string FileCreated = "agent.file-created";
+        public const string AccessibleBoxesListed = "agent.accessible-boxes-listed";
 
         public static readonly string[] All =
         [
@@ -270,7 +271,8 @@ public static class AuditLogEventTypes
             FileDownloadLinkGenerated,
             BulkDownloadLinkGenerated,
             SearchPerformed,
-            FileCreated
+            FileCreated,
+            AccessibleBoxesListed
         ];
     }
 

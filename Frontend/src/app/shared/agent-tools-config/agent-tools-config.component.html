@@ -2,94 +2,81 @@
     @if (isLoading()) {
         <div class="tools-config__loading">Loading tools…</div>
     } @else {
-        <div class="tools-config__section-title">
-            Instance tools
-            <hr class="tools-config__hr" />
-        </div>
+        @for (group of groups(); track group.key) {
+            <section class="tool-group" [class.tool-group--collapsed]="isGroupCollapsed(group.key)">
+                <button type="button"
+                    class="tool-group__header"
+                    (click)="toggleGroup(group.key)"
+                    [attr.aria-expanded]="!isGroupCollapsed(group.key)">
+                    <i class="icon icon-lg icon-lucide-chevron-down tool-group__chevron"></i>
 
-        <div class="tools-config__list">
-            @for (tool of instanceTools(); track tool.name) {
-                <div class="tool-row">
-                    <div class="tool-row__info">
-                        <div class="tool-row__name-line">
-                            <span class="tool-row__name">{{ tool.name }}</span>
-                            @if (tool.kind === 'destructive') {
-                                <span class="tool-row__badge tool-row__badge--danger">destructive</span>
-                            }
-                            @if (!tool.isDefault) {
-                                <span class="tool-row__badge tool-row__badge--custom">customised</span>
-                            }
-                        </div>
-                        <div class="tool-row__description">{{ tool.description }}</div>
+                    <div class="tool-group__heading">
+                        <span class="tool-group__title">{{ group.title }}</span>
+                        <span class="tool-group__description">{{ group.description }}</span>
                     </div>
 
-                    <div class="tool-row__controls">
-                        <label class="tool-row__toggle">
-                            <span>Enabled</span>
-                            <mat-slide-toggle
-                                [checked]="tool.isEnabled"                                (change)="onToggleGlobalEnabled(tool)">
-                            </mat-slide-toggle>
-                        </label>
-
-                        <label class="tool-row__toggle"
-                            [class.tool-row__toggle--muted]="!tool.isEnabled"
-                            matTooltip="Enable the tool to configure approval"
-                            [matTooltipDisabled]="tool.isEnabled">
-                            <span>Approval</span>
-                            <mat-slide-toggle
-                                [checked]="tool.requiresApproval"
-                                [disabled]="!tool.isEnabled"
-                                (change)="onToggleGlobalApproval(tool)">
-                            </mat-slide-toggle>
-                        </label>
+                    <div class="tool-group__counters">
+                        @if (group.enabledCount > 0) {
+                            <span class="counter counter--enabled">
+                                <span class="counter__dot"></span>{{ group.enabledCount }}/{{ group.total }} enabled
+                            </span>
+                        }
+                        @if (group.approvalCount > 0) {
+                            <span class="counter counter--approval">
+                                <span class="counter__dot"></span>{{ group.approvalCount }}/{{ group.total }} approval
+                            </span>
+                        }
+                        @if (group.disabledCount > 0) {
+                            <span class="counter counter--disabled">
+                                <span class="counter__dot"></span>{{ group.disabledCount }}/{{ group.total }} disabled
+                            </span>
+                        }
                     </div>
-                </div>
-            }
-        </div>
+                </button>
 
-        <div class="tools-config__section-title">
-            Workspace tools
-            <hr class="tools-config__hr" />
-        </div>
+                @if (!isGroupCollapsed(group.key)) {
+                    <div class="tools-config__list">
+                        @for (tool of group.tools; track tool.name) {
+                            <div class="tool-row">
+                                <div class="tool-row__info">
+                                    <div class="tool-row__name-line">
+                                        <span class="tool-row__name">{{ tool.name }}</span>
+                                        @if (tool.kind === 'destructive') {
+                                            <span class="tool-row__badge tool-row__badge--danger">destructive</span>
+                                        }
+                                        @if (!tool.isDefault) {
+                                            <span class="tool-row__badge tool-row__badge--custom">customised</span>
+                                        }
+                                    </div>
+                                    <div class="tool-row__description">{{ tool.description }}</div>
+                                </div>
 
-        <div class="tools-config__list">
-            @for (tool of workspaceGlobalTools(); track tool.name) {
-                <div class="tool-row">
-                    <div class="tool-row__info">
-                        <div class="tool-row__name-line">
-                            <span class="tool-row__name">{{ tool.name }}</span>
-                            @if (tool.kind === 'destructive') {
-                                <span class="tool-row__badge tool-row__badge--danger">destructive</span>
-                            }
-                            @if (!tool.isDefault) {
-                                <span class="tool-row__badge tool-row__badge--custom">customised</span>
-                            }
-                        </div>
-                        <div class="tool-row__description">{{ tool.description }}</div>
+                                <div class="tool-row__controls">
+                                    <label class="tool-row__toggle">
+                                        <span>Enabled</span>
+                                        <mat-slide-toggle
+                                            [checked]="tool.isEnabled"
+                                            (change)="onToggleGlobalEnabled(tool)">
+                                        </mat-slide-toggle>
+                                    </label>
+
+                                    <label class="tool-row__toggle"
+                                        [class.tool-row__toggle--muted]="!tool.isEnabled"
+                                        matTooltip="Enable the tool to configure approval"
+                                        [matTooltipDisabled]="tool.isEnabled">
+                                        <span>Approval</span>
+                                        <mat-slide-toggle
+                                            [checked]="tool.requiresApproval"
+                                            [disabled]="!tool.isEnabled"
+                                            (change)="onToggleGlobalApproval(tool)">
+                                        </mat-slide-toggle>
+                                    </label>
+                                </div>
+                            </div>
+                        }
                     </div>
-
-                    <div class="tool-row__controls">
-                        <label class="tool-row__toggle">
-                            <span>Enabled</span>
-                            <mat-slide-toggle
-                                [checked]="tool.isEnabled"                                (change)="onToggleGlobalEnabled(tool)">
-                            </mat-slide-toggle>
-                        </label>
-
-                        <label class="tool-row__toggle"
-                            [class.tool-row__toggle--muted]="!tool.isEnabled"
-                            matTooltip="Enable the tool to configure approval"
-                            [matTooltipDisabled]="tool.isEnabled">
-                            <span>Approval</span>
-                            <mat-slide-toggle
-                                [checked]="tool.requiresApproval"
-                                [disabled]="!tool.isEnabled"
-                                (change)="onToggleGlobalApproval(tool)">
-                            </mat-slide-toggle>
-                        </label>
-                    </div>
-                </div>
-            }
-        </div>
+                }
+            </section>
+        }
     }
 </div>

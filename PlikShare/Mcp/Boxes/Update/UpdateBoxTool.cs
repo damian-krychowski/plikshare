@@ -18,7 +18,7 @@ public class UpdateBoxTool
     [Description("Updates a box in a workspace the agent can access. Provide any combination of: name (to " +
                  "rename it), isEnabled (to enable or disable public/member access), folderExternalId (to " +
                  "point the box at a different folder). At least one must be given. If this tool requires " +
-                 "approval the call returns status 'waits_for_approval' with an approvalRequestId — poll " +
+                 "approval the call returns status 'waits_for_approval' with an approvalRequestId - poll " +
                  "check_approvals and, once approved, call execute_operation to run it.")]
     public static async Task<AgentToolResponse> Execute(
         IHttpContextAccessor httpContextAccessor,

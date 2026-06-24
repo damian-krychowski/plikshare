@@ -82,7 +82,7 @@ public class SearchAgentOperation(
 
         if (hasFileOnlyFilter && !includeFiles)
             throw new McpException(
-                "extensions, contentTypes and size filters apply to files only — remove them or include " +
+                "extensions, contentTypes and size filters apply to files only - remove them or include " +
                 "'file' in types.");
 
         if (hasFileOnlyFilter)

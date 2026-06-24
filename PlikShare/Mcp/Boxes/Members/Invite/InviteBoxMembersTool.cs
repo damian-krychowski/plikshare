@@ -19,7 +19,7 @@ public class InviteBoxMembersTool
                  "invitee receives an email invitation and gains list-only access to the box once they " +
                  "accept; use update_box_member_permissions to grant download, upload and other permissions. " +
                  "Returns the invited members with their external ids. If this tool requires approval the " +
-                 "call returns status 'waits_for_approval' with an approvalRequestId — poll check_approvals " +
+                 "call returns status 'waits_for_approval' with an approvalRequestId - poll check_approvals " +
                  "and, once approved, call execute_operation to run it.")]
     public static async Task<AgentToolResponse> Execute(
         IHttpContextAccessor httpContextAccessor,

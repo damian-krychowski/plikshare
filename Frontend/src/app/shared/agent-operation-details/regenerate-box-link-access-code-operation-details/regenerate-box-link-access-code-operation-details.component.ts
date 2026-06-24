@@ -8,7 +8,7 @@ import { RegenerateBoxLinkAccessCodeOperationDetails } from '../../../services/a
     styleUrl: '../_op-details.scss',
     template: `
         <div class="op-details__section-title">
-            Box link — regenerate access code
+            Box link - regenerate access code
         </div>
 
         @if(details().boxLinkName) {

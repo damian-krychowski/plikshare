@@ -3,6 +3,37 @@ import { MatSlideToggleModule } from "@angular/material/slide-toggle";
 import { MatTooltipModule } from "@angular/material/tooltip";
 import { AgentsApi, AgentToolConfig } from "../../services/agents.api";
 
+type ToolGroupKey = 'instance' | 'workspace' | 'box';
+
+interface ToolGroupView {
+    key: ToolGroupKey;
+    title: string;
+    description: string;
+    tools: AgentToolConfig[];
+    total: number;
+    enabledCount: number;
+    approvalCount: number;
+    disabledCount: number;
+}
+
+const GROUP_META: { key: ToolGroupKey; title: string; description: string }[] = [
+    {
+        key: 'instance',
+        title: 'Instance tools',
+        description: 'Global tools that are not bound to any single workspace or box. They let the agent discover existing workspaces and boxes, and create new workspaces.'
+    },
+    {
+        key: 'workspace',
+        title: 'Workspace tools',
+        description: 'Act inside a workspace the agent is a member of - browsing, file operations and share-link management. These defaults apply to every workspace unless overridden per workspace.'
+    },
+    {
+        key: 'box',
+        title: 'Box tools',
+        description: 'Act on a single box the agent was granted access to, scoped to that box\'s folder. These defaults apply to every box unless overridden per box.'
+    }
+];
+
 @Component({
     selector: 'app-agent-tools-config',
     standalone: true,
@@ -18,14 +49,46 @@ export class AgentToolsConfigComponent implements OnInit {
 
     isLoading = signal(false);
     globalTools = signal<AgentToolConfig[]>([]);
+    collapsedGroups = signal<Set<ToolGroupKey>>(new Set());
 
-    instanceTools = computed(() => this.globalTools().filter(t => t.scope === 'instance'));
-    workspaceGlobalTools = computed(() => this.globalTools().filter(t => t.scope === 'workspace'));
+    groups = computed<ToolGroupView[]>(() => {
+        const all = this.globalTools();
+
+        return GROUP_META.map(meta => {
+            const tools = all.filter(t => t.scope === meta.key);
+
+            return {
+                ...meta,
+                tools,
+                total: tools.length,
+                enabledCount: tools.filter(t => t.isEnabled).length,
+                approvalCount: tools.filter(t => t.isEnabled && t.requiresApproval).length,
+                disabledCount: tools.filter(t => !t.isEnabled).length
+            };
+        });
+    });
 
     constructor(private _agentsApi: AgentsApi) {}
 
     async ngOnInit() {
         await this.loadGlobal({ showLoading: true });
+    }
+
+    isGroupCollapsed(key: ToolGroupKey) {
+        return this.collapsedGroups().has(key);
+    }
+
+    toggleGroup(key: ToolGroupKey) {
+        this.collapsedGroups.update(current => {
+            const next = new Set(current);
+
+            if (next.has(key))
+                next.delete(key);
+            else
+                next.add(key);
+
+            return next;
+        });
     }
 
     // showLoading only on the initial fetch. The post-save refresh must stay silent: flipping

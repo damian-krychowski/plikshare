@@ -8,7 +8,7 @@ import { UpdateBoxLinkOperationDetails } from '../../../services/agents.api';
     styleUrl: '../_op-details.scss',
     template: `
         <div class="op-details__section-title">
-            Box link — update
+            Box link - update
         </div>
 
         @if(details().currentName) {

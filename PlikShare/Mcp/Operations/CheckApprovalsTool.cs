@@ -12,7 +12,7 @@ public class CheckApprovalsTool
 {
     [McpServerTool(Name = AgentToolNames.CheckApprovals)]
     [Description("Lists your operations that are waiting on a human decision and their statuses: " +
-                 "'pending' (awaiting approval), 'approved' (ready — call execute_operation to run it), " +
+                 "'pending' (awaiting approval), 'approved' (ready - call execute_operation to run it), " +
                  "'denied' or 'expired'. Poll this after submitting an approval-gated tool; once an " +
                  "operation shows 'approved', call execute_operation with its approvalRequestId. " +
                  "Already-executed operations are not listed.")]

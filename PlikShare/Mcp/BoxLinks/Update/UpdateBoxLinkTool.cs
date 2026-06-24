@@ -21,7 +21,7 @@ public class UpdateBoxLinkTool
                  "and widgetOrigins (the list of domains allowed to embed the link; pass an empty list to " +
                  "clear). Any permission flag you omit keeps its current value. At least one field must be " +
                  "given. If this tool requires approval the call returns status 'waits_for_approval' with an " +
-                 "approvalRequestId — poll check_approvals and, once approved, call execute_operation to run it.")]
+                 "approvalRequestId - poll check_approvals and, once approved, call execute_operation to run it.")]
     public static async Task<AgentToolResponse> Execute(
         IHttpContextAccessor httpContextAccessor,
         WorkspaceAgentMembershipCache workspaceAgentMembershipCache,
