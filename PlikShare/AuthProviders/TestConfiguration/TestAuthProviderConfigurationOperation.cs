@@ -47,7 +47,8 @@ public class TestAuthProviderConfigurationOperation(
             {
                 ["grant_type"] = "client_credentials",
                 ["client_id"] = clientId,
-                ["client_secret"] = clientSecret
+                ["client_secret"] = clientSecret,
+                ["scope"] = "openid email profile"
             });
 
             var tokenResponse = await client.PostAsync(
