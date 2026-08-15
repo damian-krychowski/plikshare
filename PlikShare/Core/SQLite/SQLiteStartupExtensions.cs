@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.DataProtection.XmlEncryption;
 using Microsoft.Extensions.Options;
 using PlikShare.Core.Database.AiDatabase;
 using PlikShare.Core.Database.AuditLogDatabase;
+using PlikShare.Core.Database.EventsDatabase;
 using PlikShare.Core.Database.MainDatabase;
 using PlikShare.Core.DataProtection;
 using Serilog;
@@ -27,6 +28,9 @@ public static class SqLiteStartupExtensions
         app.Services.AddSingleton<AiDbWriteQueue>();
 
         app.Services.AddSingleton<PlikShareAuditLogDb>();
+
+        app.Services.AddSingleton<PlikShareEventsDb>();
+        app.Services.AddSingleton<EventsDbWriteQueue>();
 
         Log.Information("[SETUP] SQLite setup finished.");
     }

@@ -90,6 +90,12 @@
       <EmbeddedResource Include="Core\Database\AiDatabase\Migrations\01_initial_ai_db_structure_migration.sql">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </EmbeddedResource>
+      <EmbeddedResource Include="Core\Database\EventsDatabase\Migrations\01_agent_events_inbox_introduced.sql">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </EmbeddedResource>
+      <EmbeddedResource Include="Core\Database\MainDatabase\Migrations\53_agent_event_subscriptions_introduced.sql">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </EmbeddedResource>
       <EmbeddedResource Include="Core\Database\MainDatabase\Migrations\28_ephemeral_workspace_encryption_keys_introduced.sql">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </EmbeddedResource>

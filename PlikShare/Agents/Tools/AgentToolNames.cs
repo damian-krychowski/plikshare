@@ -74,4 +74,9 @@ public static class AgentToolNames
 
     public const string ExecuteOperation = "execute_operation";
     public const string CheckApprovals = "check_approvals";
+
+    // System-event inbox: the agent polls for events that happened in the workspaces and boxes it can
+    // access (and system events caused by its owner), then reacts by calling the other tools.
+    public const string PollEvents = "poll_events";
+    public const string AckEvents = "ack_events";
 }

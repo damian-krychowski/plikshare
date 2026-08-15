@@ -1,6 +1,7 @@
 using PlikShare.Agents.Tools;
 using PlikShare.Antiforgery;
 using PlikShare.Core.Authorization;
+using PlikShare.Mcp.Events;
 using PlikShare.Mcp.BoxAccess;
 using PlikShare.Mcp.BoxAccess.BulkDownloadLink;
 using PlikShare.Mcp.BoxAccess.Content;
@@ -188,7 +189,10 @@ public static class McpStartupExtensions
                     $"At the start of a task, check BOTH {AgentToolNames.ListWorkspaces} and {AgentToolNames.ListBoxes}; an empty result " +
                     "from one does not mean you have no access, because the two surfaces are separate. Some tools require " +
                     "human approval before they run - when a call returns status 'waits_for_approval', poll " +
-                    $"{AgentToolNames.CheckApprovals} and then call {AgentToolNames.ExecuteOperation} once it is approved.";
+                    $"{AgentToolNames.CheckApprovals} and then call {AgentToolNames.ExecuteOperation} once it is approved. " +
+                    $"To react to things happening in the system, call {AgentToolNames.PollEvents} - it returns events " +
+                    "from the workspaces and boxes you can access (files and folders changed, members invited, share " +
+                    "links updated, and so on); pass back the returned cursor to receive only newer events.";
             })
             .WithHttpTransport()
             .WithTools<ListWorkspacesTool>()
@@ -244,7 +248,9 @@ public static class McpStartupExtensions
             .WithTools<MoveBoxItemsTool>()
             .WithTools<DeleteBoxItemsTool>()
             .WithTools<ExecuteOperationTool>()
-            .WithTools<CheckApprovalsTool>();
+            .WithTools<CheckApprovalsTool>()
+            .WithTools<PollEventsTool>()
+            .WithTools<AckEventsTool>();
     }
 
     public static void MapPlikShareMcp(this WebApplication app)

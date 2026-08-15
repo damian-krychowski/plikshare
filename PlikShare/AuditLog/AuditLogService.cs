@@ -1,4 +1,5 @@
 using System.Threading.Channels;
+using PlikShare.Agents.Events;
 using PlikShare.AuditLog.Details;
 using PlikShare.AuditLog.Policy;
 using PlikShare.AuditLog.Queries;
@@ -12,6 +13,7 @@ namespace PlikShare.AuditLog;
 public class AuditLogService(
     AuditLogChannel channel,
     AuditLogPolicyEvaluator policyEvaluator,
+    AgentEventDispatcher agentEventDispatcher,
     GetFileAuditContextQuery getFileAuditContextQuery,
     GetFolderAuditContextQuery getFolderAuditContextQuery,
     GetFileUploadAuditContextQuery getFileUploadAuditContextQuery,
@@ -164,10 +166,15 @@ public class AuditLogService(
 
     public async ValueTask Log(AuditLogEntry entry, CancellationToken cancellationToken)
     {
+        // Agent delivery is its own concern: every event is fanned out to interested agents
+        // regardless of the audit-retention policy below (an admin muting an event for the audit log
+        // must not silently blind agents to it). Non-blocking — just a channel write.
+        agentEventDispatcher.Publish(entry);
+
         var evaluation = await policyEvaluator.Evaluate(
-            entry, 
+            entry,
             cancellationToken);
-            
+
         if (!evaluation.ShouldLog)
             return;
 

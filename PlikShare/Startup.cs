@@ -16,6 +16,7 @@ using PlikShare.Agents.Create;
 using PlikShare.Agents.Delete;
 using PlikShare.Agents.Get;
 using PlikShare.Agents.List;
+using PlikShare.Agents.Events;
 using PlikShare.Agents.Operations;
 using PlikShare.Agents.Operations.Details;
 using PlikShare.Agents.Operations.List;
@@ -93,6 +94,7 @@ using PlikShare.Core.CorrelationId;
 using PlikShare.Core.CORS;
 using PlikShare.Core.Database.AuditLogDatabase.Migrations;
 using PlikShare.Core.Database.MainDatabase.Migrations;
+using PlikShare.Core.Database.EventsDatabase.Migrations;
 using PlikShare.Core.Emails;
 using PlikShare.Core.Emails.Alerts;
 using PlikShare.Core.Emails.Templates;
@@ -405,6 +407,8 @@ public class Startup
         builder.Services.AddSingleton<ISQLiteMigration, Migration_50_BoxDefaultMinimapAndGalleryDisplayIntroduced>();
         builder.Services.AddSingleton<ISQLiteMigration, Migration_51_AuditLogMaxSizeGrandfatherExistingInstalls>();
         builder.Services.AddSingleton<ISQLiteMigration, Migration_52_AgentsIntroduced>();
+        builder.Services.AddSingleton<ISQLiteMigration, Migration_53_AgentEventSubscriptionsIntroduced>();
+        builder.Services.AddSingleton<ISQLiteMigration, Migration_Events_01_AgentEventsInboxIntroduced>();
         builder.Services.AddSingleton<ISQLiteMigration, Migration_Ai_02_ReencryptDatabaseFromSlowPathToFastPath>();
 
         builder.Services.AddSingleton<ISQLiteMigration, Migration_Ai_01_InitialDbSetup>();
@@ -415,6 +419,14 @@ public class Startup
         builder.Services.AddSingleton<AuditLogChannel>();
         builder.Services.AddSingleton<AuditLogService>();
         builder.Services.AddHostedService<AuditLogWriter>();
+
+        // Agent event delivery: the audit funnel fans every event out to interested agents' inboxes
+        // in the isolated events database. Pull-based (poll_events / ack_events MCP tools).
+        builder.Services.AddSingleton<AgentEventChannel>();
+        builder.Services.AddSingleton<AgentEventDispatcher>();
+        builder.Services.AddSingleton<AgentEventRecipientResolver>();
+        builder.Services.AddSingleton<AgentEventInbox>();
+        builder.Services.AddHostedService<AgentEventProjector>();
         builder.Services.AddSingleton<GetAuditLogQuery>();
         builder.Services.AddSingleton<GetAuditLogStatsQuery>();
         builder.Services.AddSingleton<GetAuditLogFilterOptionsQuery>();
