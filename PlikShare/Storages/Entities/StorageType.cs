@@ -8,5 +8,6 @@ public enum StorageType
     DigitalOceanSpaces,
     BackblazeB2,
     AzureBlob,
-    GoogleCloudStorage
+    GoogleCloudStorage,
+    S3Compatible
 }

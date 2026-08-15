@@ -17,6 +17,7 @@ public class GetStoragesResponseDto
 [JsonDerivedType(derivedType: typeof(GetAwsS3StorageItemResponseDto), typeDiscriminator: "aws-s3")]
 [JsonDerivedType(derivedType: typeof(GetAzureBlobStorageItemResponseDto), typeDiscriminator: "azure-blob")]
 [JsonDerivedType(derivedType: typeof(GetGoogleCloudStorageItemResponseDto), typeDiscriminator: "google-cloud-storage")]
+[JsonDerivedType(derivedType: typeof(GetS3CompatibleStorageItemResponseDto), typeDiscriminator: "s3-compatible")]
 public abstract class GetStorageItemResponseDto
 {
     public required string Name { get; init; }
@@ -79,4 +80,12 @@ public class GetAzureBlobStorageItemResponseDto : GetStorageItemResponseDto
 public class GetGoogleCloudStorageItemResponseDto : GetStorageItemResponseDto
 {
     public required string AccessKey { get; init; }
+}
+
+public class GetS3CompatibleStorageItemResponseDto : GetStorageItemResponseDto
+{
+    public required string AccessKey { get; init; }
+    public required string Url { get; init; }
+    public required string? Region { get; init; }
+    public required bool ForcePathStyle { get; init; }
 }

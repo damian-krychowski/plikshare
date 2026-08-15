@@ -14,6 +14,7 @@ import { pushItems, removeItems } from "../../shared/signal-utils";
 import { ItemButtonComponent } from "../../shared/buttons/item-btn/item-btn.component";
 import { ActionButtonComponent } from "../../shared/buttons/action-btn/action-btn.component";
 import { EditDigitalOceanStorageComponent } from "./digitalocean/edit-digitalocean-storage/edit-digitalocean-storage.component";
+import { EditS3CompatibleStorageComponent } from "./s3-compatible/edit-s3-compatible-storage/edit-s3-compatible-storage.component";
 import { GetStorageItem } from "../../services/storages.api";
 
 @Component({
@@ -98,6 +99,11 @@ export class StorageSettingsComponent implements OnInit {
         if(item.$type == 'google-cloud-storage')
             return `AccessKey: ${item.accessKey}`;
 
+        if(item.$type == 's3-compatible') {
+            const regionInfo = item.region ? ` <br> Region: ${item.region}` : '';
+            return `AccessKey: ${item.accessKey} <br> Url: ${item.url}${regionInfo} <br> PathStyle: ${item.forcePathStyle ? 'on' : 'off'}`;
+        }
+
         throw new Error("Uknown storage type " + (item as any).$type);
     }
 
@@ -128,6 +134,10 @@ export class StorageSettingsComponent implements OnInit {
 
     onAddGoogleCloudStorage() {
         this._router.navigate(['settings/storage/add/google-cloud-storage']);
+    }
+
+    onAddS3CompatibleStorage() {
+        this._router.navigate(['settings/storage/add/s3-compatible']);
     }
 
     onStorageEdit(storage: AppStorage) {
@@ -177,6 +187,17 @@ export class StorageSettingsComponent implements OnInit {
             });
         } else if(storage.type == 'google-cloud-storage') {
             this._dialog.open(EditGoogleCloudStorageComponent, {
+                width: '500px',
+                data: {
+                    storageExternalId: storage.externalId
+                },
+                position: {
+                    top: '100px'
+                },
+                disableClose: true
+            });
+        } else if(storage.type == 's3-compatible') {
+            this._dialog.open(EditS3CompatibleStorageComponent, {
                 width: '500px',
                 data: {
                     storageExternalId: storage.externalId

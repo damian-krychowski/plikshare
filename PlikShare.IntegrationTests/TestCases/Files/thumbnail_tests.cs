@@ -4,7 +4,6 @@ using PlikShare.IntegrationTests.Infrastructure;
 using PlikShare.IntegrationTests.Infrastructure.Apis;
 using PlikShare.IntegrationTests.Infrastructure.Storage;
 using PlikShare.Storages.Encryption;
-using PlikShare.Storages.Entities;
 using Xunit.Abstractions;
 
 namespace PlikShare.IntegrationTests.TestCases.Files;
@@ -41,7 +40,7 @@ public class thumbnail_tests : TestFixture
     [MemberData(nameof(StorageTheoryData.AllStoragesAndEncryptionTypes),
         MemberType = typeof(StorageTheoryData))]
     public async Task upload_small_thumbnail_should_appear_in_preview_details(
-        StorageType provider,
+        TestStorageBackend provider,
         StorageEncryptionType encryptionType)
     {
         //given
@@ -99,7 +98,7 @@ public class thumbnail_tests : TestFixture
     [MemberData(nameof(StorageTheoryData.AllStoragesAndEncryptionTypes),
         MemberType = typeof(StorageTheoryData))]
     public async Task upload_large_thumbnail_should_appear_in_preview_details(
-        StorageType provider,
+        TestStorageBackend provider,
         StorageEncryptionType encryptionType)
     {
         //given
@@ -156,7 +155,7 @@ public class thumbnail_tests : TestFixture
     [MemberData(nameof(StorageTheoryData.AllStoragesAndEncryptionTypes),
         MemberType = typeof(StorageTheoryData))]
     public async Task upload_both_variants_should_both_appear_in_preview_details(
-        StorageType provider,
+        TestStorageBackend provider,
         StorageEncryptionType encryptionType)
     {
         //given
@@ -224,7 +223,7 @@ public class thumbnail_tests : TestFixture
     [MemberData(nameof(StorageTheoryData.AllStoragesAndEncryptionTypes),
         MemberType = typeof(StorageTheoryData))]
     public async Task uploading_same_variant_twice_should_replace_previous_thumbnail(
-        StorageType provider,
+        TestStorageBackend provider,
         StorageEncryptionType encryptionType)
     {
         //given
@@ -305,7 +304,7 @@ public class thumbnail_tests : TestFixture
     [MemberData(nameof(StorageTheoryData.AllStoragesAndEncryptionTypes),
         MemberType = typeof(StorageTheoryData))]
     public async Task delete_thumbnail_should_remove_it_from_preview_details(
-        StorageType provider,
+        TestStorageBackend provider,
         StorageEncryptionType encryptionType)
     {
         //given
@@ -379,7 +378,7 @@ public class thumbnail_tests : TestFixture
     [MemberData(nameof(StorageTheoryData.AllStoragesAndEncryptionTypes),
         MemberType = typeof(StorageTheoryData))]
     public async Task delete_thumbnail_for_missing_variant_should_be_idempotent(
-        StorageType provider,
+        TestStorageBackend provider,
         StorageEncryptionType encryptionType)
     {
         //given

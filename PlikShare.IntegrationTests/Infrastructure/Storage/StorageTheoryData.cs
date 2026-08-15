@@ -1,5 +1,4 @@
 using PlikShare.Storages.Encryption;
-using PlikShare.Storages.Entities;
 
 namespace PlikShare.IntegrationTests.Infrastructure.Storage;
 
@@ -11,13 +10,15 @@ namespace PlikShare.IntegrationTests.Infrastructure.Storage;
 /// </summary>
 public static class StorageTheoryData
 {
-    private static readonly StorageType[] AllProviderValues =
+    private static readonly TestStorageBackend[] AllProviderValues =
     [
-        StorageType.AwsS3,
-        StorageType.CloudflareR2,
-        StorageType.BackblazeB2,
-        StorageType.DigitalOceanSpaces,
-        StorageType.GoogleCloudStorage
+        TestStorageBackend.AwsS3,
+        TestStorageBackend.CloudflareR2,
+        TestStorageBackend.BackblazeB2,
+        TestStorageBackend.DigitalOceanSpaces,
+        TestStorageBackend.GoogleCloudStorage,
+        TestStorageBackend.S3CompatibleMinio,
+        TestStorageBackend.S3CompatibleRustfs
     ];
 
     /// <summary>
@@ -27,15 +28,17 @@ public static class StorageTheoryData
     /// upload/download implementation lands (Stage 2) — failures there are the signal
     /// to start that work, not a reason to skip.
     /// </summary>
-    private static readonly StorageType[] AllStorageValues =
+    private static readonly TestStorageBackend[] AllStorageValues =
     [
-        StorageType.AwsS3,
-        StorageType.CloudflareR2,
-        StorageType.BackblazeB2,
-        StorageType.DigitalOceanSpaces,
-        StorageType.HardDrive,
-        StorageType.AzureBlob,
-        StorageType.GoogleCloudStorage
+        TestStorageBackend.AwsS3,
+        TestStorageBackend.CloudflareR2,
+        TestStorageBackend.BackblazeB2,
+        TestStorageBackend.DigitalOceanSpaces,
+        TestStorageBackend.HardDrive,
+        TestStorageBackend.AzureBlob,
+        TestStorageBackend.GoogleCloudStorage,
+        TestStorageBackend.S3CompatibleMinio,
+        TestStorageBackend.S3CompatibleRustfs
     ];
 
     private static readonly StorageEncryptionType[] AllEncryptionTypes =

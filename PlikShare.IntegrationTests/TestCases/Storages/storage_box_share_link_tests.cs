@@ -3,7 +3,6 @@ using FluentAssertions;
 using PlikShare.IntegrationTests.Infrastructure;
 using PlikShare.IntegrationTests.Infrastructure.Storage;
 using PlikShare.Storages.Encryption;
-using PlikShare.Storages.Entities;
 using Xunit.Abstractions;
 
 namespace PlikShare.IntegrationTests.TestCases.Storages;
@@ -27,7 +26,7 @@ public class storage_box_share_link_tests : TestFixture
     [MemberData(nameof(StorageTheoryData.AllStoragesWithoutFullEncryption),
         MemberType = typeof(StorageTheoryData))]
     public async Task anonymous_visitor_should_download_file_via_box_link(
-        StorageType provider,
+        TestStorageBackend provider,
         StorageEncryptionType encryptionType)
     {
         //given

@@ -13,6 +13,7 @@ using PlikShare.Storages.S3.BackblazeB2;
 using PlikShare.Storages.S3.CloudflareR2;
 using PlikShare.Storages.S3.DigitalOcean;
 using PlikShare.Storages.S3.GoogleCloudStorage;
+using PlikShare.Storages.S3.S3Compatible;
 using PlikShare.Trash;
 
 namespace PlikShare.Storages.List;
@@ -181,6 +182,26 @@ public class GetStoragesQuery(
                             DefaultTrashPolicy = trashPolicyDto,
 
                             AccessKey = Obfuscate(details!.AccessKey)
+                        };
+                    }
+
+                    if (type == StorageType.S3Compatible)
+                    {
+                        var details = GetStorageDetails<S3CompatibleDetailsEntity>(
+                            encryptedDetails);
+
+                        return new GetS3CompatibleStorageItemResponseDto
+                        {
+                            ExternalId = externalId,
+                            EncryptionType = encryptionType,
+                            Name = name,
+                            WorkspacesCount = workspacesCount,
+                            DefaultTrashPolicy = trashPolicyDto,
+
+                            AccessKey = Obfuscate(details!.AccessKey),
+                            Url = details.Url,
+                            Region = details.Region,
+                            ForcePathStyle = details.ForcePathStyle
                         };
                     }
 

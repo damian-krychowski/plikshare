@@ -1,6 +1,5 @@
 using Amazon.S3;
 using Amazon.S3.Model;
-using PlikShare.Storages.Entities;
 using Serilog;
 
 namespace PlikShare.IntegrationTests.Infrastructure.Storage;
@@ -15,7 +14,7 @@ namespace PlikShare.IntegrationTests.Infrastructure.Storage;
 public static class S3HardPurge
 {
     public static async Task PurgeAndDeleteBucket(
-        StorageType provider,
+        TestStorageBackend provider,
         string bucketName,
         CancellationToken cancellationToken = default)
     {

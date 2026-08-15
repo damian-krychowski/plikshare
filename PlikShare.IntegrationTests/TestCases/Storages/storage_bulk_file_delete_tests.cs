@@ -4,7 +4,6 @@ using PlikShare.BulkDelete.Contracts;
 using PlikShare.IntegrationTests.Infrastructure;
 using PlikShare.IntegrationTests.Infrastructure.Storage;
 using PlikShare.Storages.Encryption;
-using PlikShare.Storages.Entities;
 using Xunit.Abstractions;
 
 namespace PlikShare.IntegrationTests.TestCases.Storages;
@@ -28,7 +27,7 @@ public class storage_bulk_file_delete_tests : TestFixture
     [MemberData(nameof(StorageTheoryData.AllStoragesAndEncryptionTypes),
         MemberType = typeof(StorageTheoryData))]
     public async Task bulk_delete_should_remove_all_files_in_single_request(
-        StorageType provider,
+        TestStorageBackend provider,
         StorageEncryptionType encryptionType)
     {
         //given

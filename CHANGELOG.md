@@ -2,6 +2,13 @@
 
 Release notes for PlikShare.
 
+## 1.2.4
+
+- [FEATURE] S3 Compatible storage — a new storage type for self-hosted S3 servers (MinIO, RustFS, Garage, Ceph RGW...): endpoint URL, access/secret key, an optional signing region and a "force path-style addressing" toggle (on by default). Path-style matters for self-hosted servers because the AWS SDK otherwise addresses buckets as subdomains (`https://bucket.your-server.com`), which fails TLS validation unless your certificate covers every per-bucket subdomain — this is exactly the `RemoteCertificateNameMismatch` error people hit when connecting self-hosted servers through the Cloudflare R2 type
+- [FIX] Uploads to S3 endpoints served over plain HTTP no longer fail with "When DisablePayloadSigning is true, the request must be sent over HTTPS" — payload signing now stays enabled for http:// endpoints, so a MinIO or RustFS instance on a LAN without TLS works out of the box
+- [FIX] Pre-signed upload/download links now match the storage endpoint's scheme — for http:// endpoints they were generated as https:// and the transfer failed before reaching the server
+- [IMPROVEMENT] Bucket CORS setup on S3 Compatible storages is best-effort — backends without bucket-level CORS support (like MinIO, which handles CORS server-wide) log a warning instead of breaking workspace bucket provisioning
+
 ## 1.2.3
 
 - [FEATURE] Box access for agents - an agent invited directly to a box (the same way you invite a person) can now work inside it as a consumer, scoped to that box's folder: discover its boxes (`list_boxes`), read box details and content, read files, mint single-file and ZIP download links, search, create folders and files, rename, move and delete items. Destructive deletes require approval by default and flow through the Agent requests inbox. The management tool that listed a workspace's boxes is renamed `list_workspace_boxes`, freeing `list_boxes` for this discovery

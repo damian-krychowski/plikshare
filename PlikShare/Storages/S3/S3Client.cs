@@ -277,6 +277,81 @@ public static class S3Client
         }
     }
 
+    public static AmazonS3Client BuildS3CompatibleClientOrThrow(
+        string accessKey,
+        string secretKey,
+        string url,
+        string? region,
+        bool forcePathStyle)
+    {
+        // Self-hosted S3 implementations (MinIO, RustFS, Garage, Ceph RGW...) rarely
+        // have TLS certificates covering per-bucket subdomains, hence path-style
+        // addressing by default. Checksum behaviour is capped at `WHEN_REQUIRED`
+        // because support for the newer `x-amz-checksum-*` headers varies between
+        // backends — same workaround as Backblaze and GCS.
+        var config = new AmazonS3Config
+        {
+            ServiceURL = url,
+            ForcePathStyle = forcePathStyle,
+            RequestChecksumCalculation = RequestChecksumCalculation.WHEN_REQUIRED,
+            ResponseChecksumValidation = ResponseChecksumValidation.WHEN_REQUIRED,
+        };
+
+        if (!string.IsNullOrWhiteSpace(region))
+        {
+            config.AuthenticationRegion = region;
+        }
+
+        return new AmazonS3Client(
+            new BasicAWSCredentials(
+                accessKey: accessKey,
+                secretKey: secretKey),
+            config);
+    }
+
+    public static async Task<S3CompatibleResult> BuildS3CompatibleAndTestConnection(
+        string accessKey,
+        string secretKey,
+        string url,
+        string? region,
+        bool forcePathStyle,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var client = BuildS3CompatibleClientOrThrow(
+                accessKey: accessKey,
+                secretKey: secretKey,
+                url: url,
+                region: region,
+                forcePathStyle: forcePathStyle);
+
+            var isConnectionOk = await TestConnection(
+                client: client,
+                cancellationToken: cancellationToken);
+
+            if (!isConnectionOk)
+                return new S3CompatibleResult(
+                    Code: S3CompatibleResultCode.CouldNotConnect);
+
+            return new S3CompatibleResult(
+                Code: S3CompatibleResultCode.Ok,
+                Client: client);
+        }
+        catch (Exception e)
+        {
+            if (e.Message.StartsWith("Value for ServiceURL is not a valid URL"))
+            {
+                return new S3CompatibleResult(Code: S3CompatibleResultCode.InvalidUrl);
+            }
+
+            Log.Error(e, "[S3:S3_COMPATIBLE] Something went wrong while creating client '{Url}':'{AccessKey}'",
+                url, accessKey);
+
+            throw;
+        }
+    }
+
     private static async Task<bool> TestConnection(
         IAmazonS3 client,
         CancellationToken cancellationToken = default)
@@ -356,5 +431,16 @@ public static class S3Client
 
     public readonly record struct GoogleCloudStorageResult(
         GoogleCloudStorageResultCode Code,
+        IAmazonS3? Client = null);
+
+    public enum S3CompatibleResultCode
+    {
+        Ok,
+        InvalidUrl,
+        CouldNotConnect,
+    }
+
+    public readonly record struct S3CompatibleResult(
+        S3CompatibleResultCode Code,
         IAmazonS3? Client = null);
 }

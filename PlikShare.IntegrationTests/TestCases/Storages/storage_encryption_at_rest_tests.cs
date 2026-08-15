@@ -3,7 +3,6 @@ using FluentAssertions;
 using PlikShare.IntegrationTests.Infrastructure;
 using PlikShare.IntegrationTests.Infrastructure.Storage;
 using PlikShare.Storages.Encryption;
-using PlikShare.Storages.Entities;
 using Xunit.Abstractions;
 
 namespace PlikShare.IntegrationTests.TestCases.Storages;
@@ -37,7 +36,7 @@ public class storage_encryption_at_rest_tests : TestFixture
     [MemberData(nameof(StorageTheoryData.AllStoragesAndEncryptionTypes),
         MemberType = typeof(StorageTheoryData))]
     public async Task raw_storage_object_should_match_storage_encryption_mode(
-        StorageType provider,
+        TestStorageBackend provider,
         StorageEncryptionType encryptionType)
     {
         //given

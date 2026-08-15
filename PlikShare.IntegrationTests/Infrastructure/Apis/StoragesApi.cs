@@ -10,6 +10,7 @@ using PlikShare.Storages.S3.BackblazeB2.Create.Contracts;
 using PlikShare.Storages.S3.CloudflareR2.Create.Contracts;
 using PlikShare.Storages.S3.DigitalOcean.Create.Contracts;
 using PlikShare.Storages.S3.GoogleCloudStorage.Create.Contracts;
+using PlikShare.Storages.S3.S3Compatible.Create.Contracts;
 using PlikShare.Storages.UpdateName.Contracts;
 
 namespace PlikShare.IntegrationTests.Infrastructure.Apis;
@@ -126,6 +127,19 @@ public class StoragesApi(IFlurlClient flurlClient, string appUrl)
         return await flurlClient.ExecutePost<CreateGoogleCloudStorageResponseDto, CreateGoogleCloudStorageRequestDto>(
             appUrl: appUrl,
             apiPath: "api/storages/google-cloud-storage",
+            request: request,
+            cookie: cookie,
+            antiforgery: antiforgery);
+    }
+
+    public async Task<CreateS3CompatibleStorageResponseDto> CreateS3CompatibleStorage(
+        CreateS3CompatibleStorageRequestDto request,
+        SessionAuthCookie? cookie,
+        AntiforgeryCookies antiforgery)
+    {
+        return await flurlClient.ExecutePost<CreateS3CompatibleStorageResponseDto, CreateS3CompatibleStorageRequestDto>(
+            appUrl: appUrl,
+            apiPath: "api/storages/s3-compatible",
             request: request,
             cookie: cookie,
             antiforgery: antiforgery);

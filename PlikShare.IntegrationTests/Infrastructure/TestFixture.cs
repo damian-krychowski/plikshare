@@ -37,6 +37,7 @@ using PlikShare.Storages.S3.BackblazeB2.Create.Contracts;
 using PlikShare.Storages.S3.CloudflareR2.Create.Contracts;
 using PlikShare.Storages.S3.DigitalOcean.Create.Contracts;
 using PlikShare.Storages.S3.GoogleCloudStorage.Create.Contracts;
+using PlikShare.Storages.S3.S3Compatible.Create.Contracts;
 using PlikShare.Uploads.Id;
 using PlikShare.Uploads.Initiate.Contracts;
 using PlikShare.Users.Id;
@@ -372,7 +373,7 @@ public class TestFixture: IAsyncLifetime
         return new AppStorage(
             ExternalId: hardDriveStorageResponse.ExternalId,
             Name: hardDriveName,
-            Type: StorageType.HardDrive);
+            Type: TestStorageBackend.HardDrive);
     }
 
     /// <summary>
@@ -384,7 +385,7 @@ public class TestFixture: IAsyncLifetime
     /// </summary>
     protected internal async Task<AppStorage> CreateStorage(
         AppSignedInUser user,
-        StorageType provider,
+        TestStorageBackend provider,
         StorageEncryptionType encryptionType)
     {
         Cookie? encryptionCookie = user.EncryptionCookie;
@@ -398,11 +399,10 @@ public class TestFixture: IAsyncLifetime
         var name = Random.Name($"s3-{provider.ToKebabCase()}");
 
         StorageExtId externalId;
-        StorageType storageType;
 
         switch (provider)
         {
-            case StorageType.AwsS3:
+            case TestStorageBackend.AwsS3:
                 var awsCreds = S3StorageConfig.AwsS3;
                 var awsResponse = await Api.Storages.CreateAwsS3Storage(
                     request: new CreateAwsS3StorageRequestDto(
@@ -415,10 +415,9 @@ public class TestFixture: IAsyncLifetime
                     cookie: user.Cookie,
                     antiforgery: user.Antiforgery);
                 externalId = awsResponse.ExternalId;
-                storageType = StorageType.AwsS3;
                 break;
 
-            case StorageType.CloudflareR2:
+            case TestStorageBackend.CloudflareR2:
                 var r2Creds = S3StorageConfig.CloudflareR2;
                 var r2Response = await Api.Storages.CreateCloudflareR2Storage(
                     request: new CreateCloudflareR2StorageRequestDto(
@@ -431,10 +430,9 @@ public class TestFixture: IAsyncLifetime
                     cookie: user.Cookie,
                     antiforgery: user.Antiforgery);
                 externalId = r2Response.ExternalId;
-                storageType = StorageType.CloudflareR2;
                 break;
 
-            case StorageType.BackblazeB2:
+            case TestStorageBackend.BackblazeB2:
                 var b2Creds = S3StorageConfig.BackblazeB2;
                 var b2Response = await Api.Storages.CreateBackblazeB2Storage(
                     request: new CreateBackblazeB2StorageRequestDto
@@ -449,10 +447,9 @@ public class TestFixture: IAsyncLifetime
                     cookie: user.Cookie,
                     antiforgery: user.Antiforgery);
                 externalId = b2Response.ExternalId;
-                storageType = StorageType.BackblazeB2;
                 break;
 
-            case StorageType.DigitalOceanSpaces:
+            case TestStorageBackend.DigitalOceanSpaces:
                 var doCreds = S3StorageConfig.DigitalOceanSpaces;
                 var doResponse = await Api.Storages.CreateDigitalOceanSpacesStorage(
                     request: new CreateDigitalOceanSpacesStorageRequestDto(
@@ -465,10 +462,9 @@ public class TestFixture: IAsyncLifetime
                     cookie: user.Cookie,
                     antiforgery: user.Antiforgery);
                 externalId = doResponse.ExternalId;
-                storageType = StorageType.DigitalOceanSpaces;
                 break;
 
-            case StorageType.AzureBlob:
+            case TestStorageBackend.AzureBlob:
                 var azureCreds = S3StorageConfig.AzureBlob;
                 var azureResponse = await Api.Storages.CreateAzureBlobStorage(
                     request: new CreateAzureBlobStorageRequestDto(
@@ -483,10 +479,9 @@ public class TestFixture: IAsyncLifetime
                     cookie: user.Cookie,
                     antiforgery: user.Antiforgery);
                 externalId = azureResponse.ExternalId;
-                storageType = StorageType.AzureBlob;
                 break;
 
-            case StorageType.GoogleCloudStorage:
+            case TestStorageBackend.GoogleCloudStorage:
                 var gcsCreds = S3StorageConfig.GoogleCloudStorage;
                 var gcsResponse = await Api.Storages.CreateGoogleCloudStorage(
                     request: new CreateGoogleCloudStorageRequestDto(
@@ -498,10 +493,27 @@ public class TestFixture: IAsyncLifetime
                     cookie: user.Cookie,
                     antiforgery: user.Antiforgery);
                 externalId = gcsResponse.ExternalId;
-                storageType = StorageType.GoogleCloudStorage;
                 break;
 
-            case StorageType.HardDrive:
+            case TestStorageBackend.S3CompatibleMinio:
+            case TestStorageBackend.S3CompatibleRustfs:
+                var s3CompatibleCreds = S3StorageConfig.S3Compatible(provider);
+                var s3CompatibleResponse = await Api.Storages.CreateS3CompatibleStorage(
+                    request: new CreateS3CompatibleStorageRequestDto(
+                        Name: name,
+                        AccessKey: s3CompatibleCreds.AccessKey,
+                        SecretKey: s3CompatibleCreds.SecretKey,
+                        Url: s3CompatibleCreds.Url,
+                        Region: s3CompatibleCreds.Region,
+                        ForcePathStyle: s3CompatibleCreds.ForcePathStyle,
+                        EncryptionType: encryptionType,
+                        DefaultTrashPolicy: TrashPolicyDto.Disabled),
+                    cookie: user.Cookie,
+                    antiforgery: user.Antiforgery);
+                externalId = s3CompatibleResponse.ExternalId;
+                break;
+
+            case TestStorageBackend.HardDrive:
                 var hardDriveResponse = await Api.Storages.CreateHardDriveStorage(
                     request: new CreateHardDriveStorageRequestDto(
                         Name: name,
@@ -512,7 +524,6 @@ public class TestFixture: IAsyncLifetime
                     cookie: user.Cookie,
                     antiforgery: user.Antiforgery);
                 externalId = hardDriveResponse.ExternalId;
-                storageType = StorageType.HardDrive;
                 break;
 
             default:
@@ -522,7 +533,7 @@ public class TestFixture: IAsyncLifetime
         return new AppStorage(
             ExternalId: externalId,
             Name: name,
-            Type: storageType,
+            Type: provider,
             WorkspaceEncryptionSession: encryptionType == StorageEncryptionType.Full
                 ? encryptionCookie
                 : null);
@@ -544,7 +555,7 @@ public class TestFixture: IAsyncLifetime
     protected async Task CleanupS3WorkspaceAndStorage(
         AppWorkspace workspace,
         AppStorage storage,
-        StorageType provider,
+        TestStorageBackend provider,
         AppSignedInUser user)
     {
         var storageInternalId = GetStorageInternalId(storage.ExternalId);
@@ -686,7 +697,7 @@ public class TestFixture: IAsyncLifetime
         return new AppStorage(
             ExternalId: hardDriveStorageResponse.ExternalId,
             Name: hardDriveName,
-            Type: StorageType.HardDrive,
+            Type: TestStorageBackend.HardDrive,
             WorkspaceEncryptionSession: encryptionType == StorageEncryptionType.Full
                 ? encryptionCookie
                 : null);
@@ -699,7 +710,7 @@ public class TestFixture: IAsyncLifetime
         // Hard-drive bucket = local Directory.Create — finishes immediately.
         // Live S3 providers are network-bound; Backblaze B2 in particular can
         // take several seconds to complete PutBucket + PutCORS.
-        var (attempts, delayMs) = workspace.StorageType == StorageType.HardDrive
+        var (attempts, delayMs) = workspace.StorageType == TestStorageBackend.HardDrive
             ? (attempts: 100, delayMs: 20)
             : (attempts: 200, delayMs: 150);
 
@@ -1820,7 +1831,7 @@ public class TestFixture: IAsyncLifetime
     public record AppWorkspace(
         WorkspaceExtId ExternalId,
         string Name,
-        StorageType StorageType,
+        TestStorageBackend StorageType,
         Cookie? WorkspaceEncryptionSession = null);
     
     public record AppUsers(
@@ -1840,7 +1851,7 @@ public class TestFixture: IAsyncLifetime
     public record AppStorage(
         StorageExtId ExternalId,
         string Name,
-        StorageType Type,
+        TestStorageBackend Type,
         Cookie? WorkspaceEncryptionSession = null);
 
     public record AppEmailProvider(

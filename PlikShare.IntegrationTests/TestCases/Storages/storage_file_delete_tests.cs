@@ -5,7 +5,6 @@ using PlikShare.IntegrationTests.Infrastructure;
 using PlikShare.IntegrationTests.Infrastructure.Apis;
 using PlikShare.IntegrationTests.Infrastructure.Storage;
 using PlikShare.Storages.Encryption;
-using PlikShare.Storages.Entities;
 using Xunit.Abstractions;
 
 namespace PlikShare.IntegrationTests.TestCases.Storages;
@@ -29,7 +28,7 @@ public class storage_file_delete_tests : TestFixture
     [MemberData(nameof(StorageTheoryData.AllStoragesAndEncryptionTypes),
         MemberType = typeof(StorageTheoryData))]
     public async Task uploaded_file_should_be_inaccessible_after_delete(
-        StorageType provider,
+        TestStorageBackend provider,
         StorageEncryptionType encryptionType)
     {
         //given

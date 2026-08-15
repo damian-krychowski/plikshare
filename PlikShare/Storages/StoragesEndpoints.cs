@@ -32,6 +32,9 @@ using PlikShare.Storages.S3.DigitalOcean.UpdateDetails.Contracts;
 using PlikShare.Storages.S3.GoogleCloudStorage;
 using PlikShare.Storages.S3.GoogleCloudStorage.Create.Contracts;
 using PlikShare.Storages.S3.GoogleCloudStorage.UpdateDetails.Contracts;
+using PlikShare.Storages.S3.S3Compatible;
+using PlikShare.Storages.S3.S3Compatible.Create.Contracts;
+using PlikShare.Storages.S3.S3Compatible.UpdateDetails.Contracts;
 using PlikShare.Storages.UpdateDefaultTrashPolicy;
 using PlikShare.Storages.UpdateName;
 using PlikShare.Storages.UpdateName.Contracts;
@@ -133,6 +136,13 @@ public static class StoragesEndpoints
 
         group.MapPatch("/google-cloud-storage/{storageExternalId}/details", UpdateGoogleCloudStorageDetails)
             .WithName("UpdateGoogleCloudStorageDetails");
+
+        // S3 Compatible (MinIO, RustFS, Garage, Ceph RGW...)
+        group.MapPost("/s3-compatible", CreateS3CompatibleStorage)
+            .WithName("CreateS3CompatibleStorage");
+
+        group.MapPatch("/s3-compatible/{storageExternalId}/details", UpdateS3CompatibleStorageDetails)
+            .WithName("UpdateS3CompatibleStorageDetails");
     }
 
     private static GetStorageNamesResponseDto GetStorageNames(GetStorageNamesQuery getStorageNamesQuery)
@@ -978,6 +988,121 @@ public static class StoragesEndpoints
             default:
                 throw new UnexpectedOperationResultException(
                     operationName: nameof(CreateStorageFlow),
+                    resultValueStr: result.ToString());
+        }
+    }
+
+    // S3 Compatible Operations
+    private static async Task<Results<Ok<CreateS3CompatibleStorageResponseDto>, BadRequest<HttpError>>> CreateS3CompatibleStorage(
+        [FromBody] CreateS3CompatibleStorageRequestDto request,
+        S3CompatibleStorageClientFactory s3CompatibleStorageClientFactory,
+        CreateStorageFlow createStorageFlow,
+        HttpContext httpContext,
+        AuditLogService auditLogService,
+        CancellationToken cancellationToken)
+    {
+        if (!TrashPolicy.TryCreate(request.DefaultTrashPolicy.Enabled, request.DefaultTrashPolicy.RetentionDays, out var defaultTrashPolicy))
+            return HttpErrors.Trash.InvalidPolicy();
+
+        var result = await createStorageFlow.Execute(
+            factory: s3CompatibleStorageClientFactory,
+            input: new S3CompatibleDetailsEntity(
+                AccessKey: request.AccessKey,
+                SecretKey: request.SecretKey,
+                Url: request.Url,
+                Region: request.Region,
+                ForcePathStyle: request.ForcePathStyle),
+            name: request.Name,
+            encryptionType: request.EncryptionType,
+            defaultTrashPolicy: defaultTrashPolicy,
+            creator: await httpContext.GetUserContext(),
+            cancellationToken: cancellationToken);
+
+        switch (result.Code)
+        {
+            case StorageOperationResultCode.Ok:
+                await auditLogService.Log(
+                    Audit.Storage.CreatedEntry(
+                        actor: httpContext.GetAuditLogActorContext(),
+                        storage: new Audit.StorageRef
+                        {
+                            ExternalId = result.StorageExternalId!.Value,
+                            Name = request.Name,
+                            Type = StorageType.S3Compatible
+                        }),
+                    cancellationToken);
+
+                return TypedResults.Ok(new CreateS3CompatibleStorageResponseDto(
+                    ExternalId: result.StorageExternalId!.Value,
+                    RecoveryCode: result.RecoveryCode));
+
+            case StorageOperationResultCode.CouldNotConnect:
+                return HttpErrors.Storage.ConnectionFailed();
+
+            case StorageOperationResultCode.NameNotUnique:
+                return HttpErrors.Storage.NameNotUnique(request.Name);
+
+            case StorageOperationResultCode.InvalidUrl:
+                return HttpErrors.Storage.InvalidUrl(request.Url);
+
+            case StorageOperationResultCode.CreatorEncryptionNotSetUp:
+                return HttpErrors.Storage.CreatorEncryptionNotSetUp();
+
+            default:
+                throw new UnexpectedOperationResultException(
+                    operationName: nameof(CreateStorageFlow),
+                    resultValueStr: result.ToString());
+        }
+    }
+
+    private static async Task<Results<Ok, NotFound<HttpError>, BadRequest<HttpError>>> UpdateS3CompatibleStorageDetails(
+        [FromRoute] StorageExtId storageExternalId,
+        [FromBody] UpdateS3CompatibleStorageDetailsRequestDto request,
+        S3CompatibleStorageClientFactory s3CompatibleStorageClientFactory,
+        UpdateStorageFlow updateStorageFlow,
+        HttpContext httpContext,
+        AuditLogService auditLogService,
+        CancellationToken cancellationToken)
+    {
+        var result = await updateStorageFlow.Execute(
+            factory: s3CompatibleStorageClientFactory,
+            externalId: storageExternalId,
+            input: new S3CompatibleDetailsEntity(
+                AccessKey: request.AccessKey,
+                SecretKey: request.SecretKey,
+                Url: request.Url,
+                Region: request.Region,
+                ForcePathStyle: request.ForcePathStyle),
+            cancellationToken: cancellationToken);
+
+        switch (result.Code)
+        {
+            case StorageOperationResultCode.Ok:
+                await auditLogService.Log(
+                    Audit.Storage.DetailsUpdatedEntry(
+                        actor: httpContext.GetAuditLogActorContext(),
+                        storage: new Audit.StorageRef
+                        {
+                            ExternalId = storageExternalId,
+                            Name = result.Name!,
+                            Type = StorageType.S3Compatible
+                        }),
+                    cancellationToken);
+
+                return TypedResults.Ok();
+
+            case StorageOperationResultCode.CouldNotConnect:
+                return HttpErrors.Storage.ConnectionFailed();
+
+            case StorageOperationResultCode.NotFound:
+                return HttpErrors.Storage.NotFound(storageExternalId);
+
+            case StorageOperationResultCode.InvalidUrl:
+                return HttpErrors.Storage.InvalidUrl(request.Url);
+
+            default:
+                throw new UnexpectedOperationResultException(
+                    operationName: nameof(UpdateStorageFlow),
                     resultValueStr: result.ToString());
         }
     }

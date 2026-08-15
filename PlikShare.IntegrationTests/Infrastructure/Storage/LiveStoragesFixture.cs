@@ -1,7 +1,6 @@
 using PlikShare.Core.SQLite;
 using PlikShare.IntegrationTests.Infrastructure.Apis;
 using PlikShare.Storages.Encryption;
-using PlikShare.Storages.Entities;
 using Serilog;
 
 namespace PlikShare.IntegrationTests.Infrastructure.Storage;
@@ -28,7 +27,7 @@ public sealed class LiveStoragesFixture : IAsyncLifetime
 
     public async Task<LiveStorageSetup> GetOrCreate(
         TestFixture testFixture,
-        StorageType provider,
+        TestStorageBackend provider,
         StorageEncryptionType encryption,
         TestFixture.AppSignedInUser user)
     {

@@ -34,6 +34,19 @@ public class S3StorageClient(
     public StorageExtId ExternalId { get; } = externalId;
     public string Name { get; } = name;
     private readonly RateLimiter _rateLimiter = new(100, 80);
+
+    // Self-hosted S3-compatible endpoints (e.g. MinIO or RustFS on a LAN) often run
+    // without TLS, which the SDK does not handle on its own in two places:
+    // - AWS4 signing refuses unsigned payloads over plain HTTP ("When
+    //   DisablePayloadSigning is true, the request must be sent over HTTPS"),
+    //   so payload signing must stay enabled there;
+    // - GetPreSignedURL defaults to Protocol.HTTPS regardless of the endpoint
+    //   scheme, producing https:// links to an http:// server.
+    private readonly bool _isHttpsEndpoint =
+        s3Client.Config.ServiceURL is null
+        || s3Client.Config.ServiceURL.StartsWith("https", StringComparison.OrdinalIgnoreCase);
+
+    private Protocol PreSignedUrlProtocol => _isHttpsEndpoint ? Protocol.HTTPS : Protocol.HTTP;
     
     public StorageEncryption Encryption { get; } = encryption;
     public TrashPolicy DefaultTrashPolicy { get; set; } = defaultTrashPolicy;
@@ -164,6 +177,7 @@ public class S3StorageClient(
                 ContentType = contentType,
                 Verb = HttpVerb.PUT,
                 Expires = expiresAt.UtcDateTime,
+                Protocol = PreSignedUrlProtocol,
             };
 
             var response = await s3Client.GetPreSignedURLAsync(
@@ -199,6 +213,7 @@ public class S3StorageClient(
                 ContentType = contentType,
                 Verb = HttpVerb.PUT,
                 Expires = expiresAt.UtcDateTime,
+                Protocol = PreSignedUrlProtocol,
             };
 
             var response = await s3Client.GetPreSignedURLAsync(request);
@@ -233,6 +248,7 @@ public class S3StorageClient(
                 Key = key.Value,
                 Verb = HttpVerb.GET,
                 Expires = expiresAt.UtcDateTime,
+                Protocol = PreSignedUrlProtocol,
                 ResponseHeaderOverrides = new ResponseHeaderOverrides
                 {
                     ContentType = contentType,
@@ -958,7 +974,7 @@ public class S3StorageClient(
                 Key = key.Value,
                 PartNumber = partNumber,
                 InputStream = fileBytes.AsStream(),
-                DisablePayloadSigning = true,
+                DisablePayloadSigning = _isHttpsEndpoint,
                 DisableDefaultChecksumValidation = true,
                 UseChunkEncoding = false,
                 PartSize = fileBytes.Length,
@@ -997,7 +1013,7 @@ public class S3StorageClient(
                 BucketName = bucketName,
                 Key = key.Value,
                 InputStream = fileBytes.AsStream(),
-                DisablePayloadSigning = true,
+                DisablePayloadSigning = _isHttpsEndpoint,
                 DisableDefaultChecksumValidation = true,
                 UseChunkEncoding = false,
             };

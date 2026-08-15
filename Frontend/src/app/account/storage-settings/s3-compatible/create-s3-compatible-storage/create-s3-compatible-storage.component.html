@@ -1,0 +1,191 @@
+<div class="app-container">
+    <div class="top-bar">
+        <div class="top-bar__header">
+            <button class="top-nav-btn"
+                aria-label="Account"
+                mat-flat-button
+                matTooltip="Go back to Account"
+                matTooltipPosition="below"
+                (click)="goToStorages()">
+                <div class="icon-merge">
+                    <i class="icon icon-lg icon-lucide-chevron-left icon-merge--back"></i>
+                    <i class="icon icon-xl icon-lucide-server icon-merge--front"></i>
+                </div>
+            </button>
+
+            <div class="flex-column">
+                <div class="top-bar__title">
+                    Storage settings
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <div class="content">
+        <div class="mt-3"></div>
+
+        <div class="title-header">
+            <div>
+                Add S3 Compatible storage:
+            </div>
+        </div>
+
+        <div class="mt-2"></div>
+
+        <form class="page-form" (submit)="onCreateStorage()" [formGroup]="formGroup">
+            <div>
+                <mat-form-field class="page-form__field">
+                    <mat-label>Storage Name</mat-label>
+
+                    <input
+                        id="name"
+                        type="text"
+                        formControlName="name"
+                        placeholder="My MinIO storage"
+                        matInput>
+
+                    @if ((name.touched || wasSubmitted()) && name.hasError('required')) {
+                        <mat-error>Storage name is <strong>required</strong></mat-error>
+                    }
+
+                    @if ((name.touched || wasSubmitted()) && name.hasError('notUnique')){
+                        <mat-error>Storage name is <strong>not unique</strong></mat-error>
+                    }
+                </mat-form-field>
+
+                <div class="page-form__info">
+                    Storage name will be displayed on list of storages. For example: My MinIO storage
+                </div>
+            </div>
+
+            <div class="page-form__section-title">
+                Configuration:
+            </div>
+
+            <mat-form-field class="page-form__form-field">
+                <mat-label>Access Key</mat-label>
+
+                <input
+                    id="accessKey"
+                    type="text"
+                    matInput
+                    appSecureInput
+                    formControlName="accessKey">
+
+                @if ((accessKey.touched || wasSubmitted()) && accessKey.hasError('required')) {
+                    <mat-error>Access Key is <strong>required</strong></mat-error>
+                }
+            </mat-form-field>
+
+            <mat-form-field class="page-form__form-field">
+                <mat-label>Secret Key</mat-label>
+
+                <input
+                    id="secretKey"
+                    type="text"
+                    matInput
+                    appSecureInput
+                    formControlName="secretKey">
+
+                @if ((secretKey.touched || wasSubmitted()) && secretKey.hasError('required')) {
+                    <mat-error>Secret Key is <strong>required</strong></mat-error>
+                }
+            </mat-form-field>
+
+            <mat-form-field class="page-form__form-field">
+                <mat-label>Url</mat-label>
+
+                <input
+                    id="url"
+                    type="text"
+                    matInput
+                    placeholder="https://s3.my-server.com"
+                    formControlName="url" >
+
+                @if ((url.touched || wasSubmitted()) && url.hasError('required')) {
+                    <mat-error>Url is <strong>required</strong></mat-error>
+                }
+
+                @if ((url.touched || wasSubmitted()) && url.hasError('invalidUrl')){
+                    <mat-error>Url is <strong>not valid</strong></mat-error>
+                }
+            </mat-form-field>
+
+            <div>
+                <mat-form-field class="page-form__form-field">
+                    <mat-label>Region (optional)</mat-label>
+
+                    <input
+                        id="region"
+                        type="text"
+                        matInput
+                        placeholder="us-east-1"
+                        formControlName="region">
+                </mat-form-field>
+
+                <div class="page-form__info">
+                    Leave empty unless your server requires a specific signing region.
+                </div>
+            </div>
+
+            <div>
+                <mat-checkbox
+                    id="forcePathStyle"
+                    formControlName="forcePathStyle">
+                    Force path-style addressing
+                </mat-checkbox>
+
+                <div class="page-form__info">
+                    Recommended for self-hosted servers (MinIO, RustFS, Garage). Buckets are addressed as
+                    https://s3.my-server.com/bucket instead of https://bucket.s3.my-server.com, so your TLS
+                    certificate does not need to cover per-bucket subdomains.
+                </div>
+            </div>
+
+            @if(couldNotConnect()){
+                <mat-error>
+                    Storage credentials are incorrect - test connection has failed
+                </mat-error>
+            }
+
+            <div class="page-form__section-title">
+                Options:
+            </div>
+
+            <app-config-card
+                title="Encryption"
+                description="Choose how files on this storage are encrypted at rest. This is set once and cannot be changed later.">
+                <app-encryption-type-selector formControlName="encryption" />
+            </app-config-card>
+
+            <app-config-card
+                title="Trash"
+                description="Default trash policy for workspaces created on this storage. Each workspace can change it later in its own settings.">
+                <app-trash-policy-config
+                    [trashPolicy]="trashPolicy()"
+                    (configChanged)="onTrashPolicyChange($event)">
+                </app-trash-policy-config>
+            </app-config-card>
+
+            <div class="mt-3 d-none-on-mobile"></div>
+
+            <div class="page-form__actions">
+                <button type="button" class="page-form__btn mr-1" mat-flat-button
+                    aria-label="Cancel"
+                    (click)="goToStorages()"
+                    [disabled]="isLoading()">
+                    Cancel
+                </button>
+
+                <button type="submit" class="page-form__btn" mat-flat-button
+                    aria-label="Create storage"
+                    [class.page-form__btn--disabled]="formGroup.invalid"
+                    [class.page-form__btn--loading]="isLoading()"
+                    [disabled]="isLoading() || formGroup.invalid">
+                    Create storage
+                </button>
+            </div>
+        </form>
+    </div>
+</div>

@@ -3,7 +3,6 @@ using FluentAssertions;
 using PlikShare.IntegrationTests.Infrastructure;
 using PlikShare.IntegrationTests.Infrastructure.Storage;
 using PlikShare.Storages.Encryption;
-using PlikShare.Storages.Entities;
 using Xunit.Abstractions;
 
 namespace PlikShare.IntegrationTests.TestCases.Storages;
@@ -35,7 +34,7 @@ public class storage_presigned_download_url_tests : TestFixture
     [MemberData(nameof(StorageTheoryData.AllStoragesAndEncryptionTypes),
         MemberType = typeof(StorageTheoryData))]
     public async Task download_via_presigned_url_should_return_uploaded_content(
-        StorageType provider,
+        TestStorageBackend provider,
         StorageEncryptionType encryptionType)
     {
         //given

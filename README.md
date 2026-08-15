@@ -26,6 +26,7 @@ PlikShare is a self-hosted file sharing application that allows you to securely 
 - Backblaze B2
 - Azure Blob Storage
 - Google Cloud Storage
+- Any S3-compatible server (MinIO, RustFS, Garage, Ceph RGW...)
 
 ## Hey Claude, how to pronounce it?
 ![claude_pronunciation](https://github.com/damian-krychowski/plikshare/blob/main/assets/how_to_pronounce.png)

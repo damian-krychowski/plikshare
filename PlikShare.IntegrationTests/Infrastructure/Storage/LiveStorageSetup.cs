@@ -1,5 +1,4 @@
 using PlikShare.Storages.Encryption;
-using PlikShare.Storages.Entities;
 using static PlikShare.IntegrationTests.Infrastructure.TestFixture;
 
 namespace PlikShare.IntegrationTests.Infrastructure.Storage;
@@ -11,7 +10,7 @@ namespace PlikShare.IntegrationTests.Infrastructure.Storage;
 /// own folder under <see cref="Workspace"/>.
 /// </summary>
 public sealed record LiveStorageSetup(
-    StorageType Provider,
+    TestStorageBackend Provider,
     StorageEncryptionType Encryption,
     AppStorage Storage,
     AppWorkspace Workspace,

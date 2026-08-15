@@ -220,6 +220,7 @@ using PlikShare.Storages.S3.BackblazeB2;
 using PlikShare.Storages.S3.CloudflareR2;
 using PlikShare.Storages.S3.DigitalOcean;
 using PlikShare.Storages.S3.GoogleCloudStorage;
+using PlikShare.Storages.S3.S3Compatible;
 using PlikShare.Storages.UpdateDefaultTrashPolicy;
 using PlikShare.Storages.UpdateDetails;
 using PlikShare.Storages.UpdateName;
@@ -767,6 +768,7 @@ public class Startup
         builder.Services.AddSingleton<DigitalOceanStorageClientFactory>();
         builder.Services.AddSingleton<AzureBlobStorageClientFactory>();
         builder.Services.AddSingleton<GoogleCloudStorageClientFactory>();
+        builder.Services.AddSingleton<S3CompatibleStorageClientFactory>();
         builder.Services.AddSingleton<CreateStorageFlow>();
         builder.Services.AddSingleton<UpdateStorageFlow>();
         builder.Services.AddSingleton<GetStoragesQuery>();

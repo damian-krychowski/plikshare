@@ -81,6 +81,10 @@ export const routes: Routes = [{
     loadComponent: () => import('./account/storage-settings/google-cloud/create-google-cloud-storage/create-google-cloud-storage.component').then(m => m.CreateGoogleCloudStorageComponent),
     canActivate: [AdminGuardService]
 }, {
+    path: 'settings/storage/add/s3-compatible',
+    loadComponent: () => import('./account/storage-settings/s3-compatible/create-s3-compatible-storage/create-s3-compatible-storage.component').then(m => m.CreateS3CompatibleStorageComponent),
+    canActivate: [AdminGuardService]
+}, {
     path: 'settings/email',
     loadComponent: () => import('./account/email-settings/email-settings.component').then(m => m.EmailSettingsComponent),
     canActivate: [AdminGuardService]

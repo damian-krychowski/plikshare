@@ -1,10 +1,8 @@
-using PlikShare.Storages.Entities;
-
 namespace PlikShare.IntegrationTests.Infrastructure.Storage;
 
 /// <summary>
 /// Factory for <see cref="IRawStorageClient"/> instances. Tests dispatch on the
-/// storage's <see cref="StorageType"/> so the same assertion code (read at-rest
+/// storage's <see cref="TestStorageBackend"/> so the same assertion code (read at-rest
 /// bytes / wait for physical deletion) works against any backend.
 /// </summary>
 public static class RawStorageClient
@@ -15,16 +13,18 @@ public static class RawStorageClient
     {
         return storage.Type switch
         {
-            StorageType.HardDrive => new HardDriveRawStorageClient(
+            TestStorageBackend.HardDrive => new HardDriveRawStorageClient(
                 storageRoot: $"{mainVolume.Path}/{storage.Name}"),
 
-            StorageType.AzureBlob => new AzureBlobRawStorageClient(),
+            TestStorageBackend.AzureBlob => new AzureBlobRawStorageClient(),
 
-            StorageType.AwsS3
-                or StorageType.CloudflareR2
-                or StorageType.BackblazeB2
-                or StorageType.DigitalOceanSpaces
-                or StorageType.GoogleCloudStorage => new S3RawStorageClient(storage.Type),
+            TestStorageBackend.AwsS3
+                or TestStorageBackend.CloudflareR2
+                or TestStorageBackend.BackblazeB2
+                or TestStorageBackend.DigitalOceanSpaces
+                or TestStorageBackend.GoogleCloudStorage
+                or TestStorageBackend.S3CompatibleMinio
+                or TestStorageBackend.S3CompatibleRustfs => new S3RawStorageClient(storage.Type),
 
             _ => throw new ArgumentOutOfRangeException(
                 nameof(storage), storage.Type, "Unsupported storage type for raw access.")

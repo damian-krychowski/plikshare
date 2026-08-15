@@ -12,36 +12,49 @@ namespace PlikShare.IntegrationTests.Infrastructure.Storage;
 /// </summary>
 public static class S3RawClient
 {
-    public static IAmazonS3 Build(StorageType provider)
+    public static IAmazonS3 Build(TestStorageBackend provider)
     {
         return provider switch
         {
-            StorageType.AwsS3 => S3Client.BuildAwsClientOrThrow(
+            TestStorageBackend.AwsS3 => S3Client.BuildAwsClientOrThrow(
                 accessKey: S3StorageConfig.AwsS3.AccessKey,
                 secretAccessKey: S3StorageConfig.AwsS3.SecretAccessKey,
                 region: S3StorageConfig.AwsS3.Region),
 
-            StorageType.CloudflareR2 => S3Client.BuildCloudflareClientOrThrow(
+            TestStorageBackend.CloudflareR2 => S3Client.BuildCloudflareClientOrThrow(
                 accessKeyId: S3StorageConfig.CloudflareR2.AccessKeyId,
                 secretAccessKey: S3StorageConfig.CloudflareR2.SecretAccessKey,
                 url: S3StorageConfig.CloudflareR2.Url),
 
-            StorageType.BackblazeB2 => S3Client.BuildBackblazeClientOrThrow(
+            TestStorageBackend.BackblazeB2 => S3Client.BuildBackblazeClientOrThrow(
                 keyId: S3StorageConfig.BackblazeB2.KeyId,
                 applicationKey: S3StorageConfig.BackblazeB2.ApplicationKey,
                 url: S3StorageConfig.BackblazeB2.Url),
 
-            StorageType.DigitalOceanSpaces => S3Client.BuildDigitalOceanSpacesClientOrThrow(
+            TestStorageBackend.DigitalOceanSpaces => S3Client.BuildDigitalOceanSpacesClientOrThrow(
                 accessKey: S3StorageConfig.DigitalOceanSpaces.AccessKey,
                 secretKey: S3StorageConfig.DigitalOceanSpaces.SecretKey,
                 url: $"https://{S3StorageConfig.DigitalOceanSpaces.Region}.digitaloceanspaces.com"),
 
-            StorageType.GoogleCloudStorage => S3Client.BuildGoogleCloudStorageClientOrThrow(
+            TestStorageBackend.GoogleCloudStorage => S3Client.BuildGoogleCloudStorageClientOrThrow(
                 accessKey: S3StorageConfig.GoogleCloudStorage.AccessKey,
                 secretKey: S3StorageConfig.GoogleCloudStorage.SecretKey),
 
+            TestStorageBackend.S3CompatibleMinio or TestStorageBackend.S3CompatibleRustfs
+                => BuildS3Compatible(S3StorageConfig.S3Compatible(provider)),
+
             _ => throw new ArgumentOutOfRangeException(nameof(provider), provider, null)
         };
+    }
+
+    private static IAmazonS3 BuildS3Compatible(S3CompatibleCredentials credentials)
+    {
+        return S3Client.BuildS3CompatibleClientOrThrow(
+            accessKey: credentials.AccessKey,
+            secretKey: credentials.SecretKey,
+            url: credentials.Url,
+            region: credentials.Region,
+            forcePathStyle: credentials.ForcePathStyle);
     }
 
     /// <summary>

@@ -70,6 +70,12 @@
                     icon="icon-google-logo"
                     (clicked)="onAddGoogleCloudStorage()">
                 </app-action-btn>
+
+                <app-action-btn
+                    tooltip="Create S3 Compatible storage"
+                    icon="icon-lucide-server"
+                    (clicked)="onAddS3CompatibleStorage()">
+                </app-action-btn>
             </div>
         </div>
 
@@ -124,7 +130,7 @@
             <app-item-btn
                 title="Add Azure Blob"
                 subtitle="Click here to add Azure Blob storage!"
-                icon="icon-microsoft-logo"b
+                icon="icon-microsoft-logo"
                 (clicked)="onAddAzureBlobStorage()">
             </app-item-btn>
 
@@ -133,6 +139,13 @@
                 subtitle="Click here to add Google Cloud Storage!"
                 icon="icon-google-logo"
                 (clicked)="onAddGoogleCloudStorage()">
+            </app-item-btn>
+
+            <app-item-btn
+                title="Add S3 Compatible"
+                subtitle="Click here to add S3 Compatible storage!"
+                icon="icon-lucide-server"
+                (clicked)="onAddS3CompatibleStorage()">
             </app-item-btn>
         </div>
 

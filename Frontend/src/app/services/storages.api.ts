@@ -84,7 +84,7 @@ export interface GetStoragesResponse {
     items: GetStorageItem[];
 }
 
-export type AppStorageType = 'hard-drive' | 'cloudflare-r2' | 'aws-s3' | 'digital-ocean-spaces' | 'backblaze-b2' | 'azure-blob' | 'google-cloud-storage';
+export type AppStorageType = 'hard-drive' | 'cloudflare-r2' | 'aws-s3' | 'digital-ocean-spaces' | 'backblaze-b2' | 'azure-blob' | 'google-cloud-storage' | 's3-compatible';
 
 export type AppStorageEncryptionType = 'none' | 'managed' | 'full';
 
@@ -97,7 +97,8 @@ export type GetStorageItem =
     | GetDigitalOceanSpacesStorageItem
     | GetBackblazeB2StorageItem
     | GetAzureBlobStorageItem
-    | GetGoogleCloudStorageItem;
+    | GetGoogleCloudStorageItem
+    | GetS3CompatibleStorageItem;
 
 export type GetHardDriveStorageItem = {
     $type: "hard-drive",
@@ -184,6 +185,20 @@ export type GetGoogleCloudStorageItem = {
     accessKey: string;
 }
 
+export type GetS3CompatibleStorageItem = {
+    $type: "s3-compatible",
+    externalId: string;
+    name: string;
+    workspacesCount: number;
+    encryptionType: AppStorageEncryptionType;
+    defaultTrashPolicy: TrashPolicyDto;
+
+    accessKey: string;
+    url: string;
+    region: string | null;
+    forcePathStyle: boolean;
+}
+
 export interface GetHardDriveVolumesRespone {
     items: HardDriveVolumeItem[];
 }
@@ -254,6 +269,30 @@ export interface CreateGoogleCloudStorageResponse {
 export interface UpdateGoogleCloudStorageDetailsRequest {
     accessKey: string;
     secretKey: string;
+}
+
+export interface CreateS3CompatibleStorageRequest {
+    name: string;
+    accessKey: string;
+    secretKey: string;
+    url: string;
+    region: string | null;
+    forcePathStyle: boolean;
+    encryptionType: AppStorageEncryptionType;
+    defaultTrashPolicy: TrashPolicyDto;
+}
+
+export interface CreateS3CompatibleStorageResponse {
+    externalId: string;
+    recoveryCode?: string;
+}
+
+export interface UpdateS3CompatibleStorageDetailsRequest {
+    accessKey: string;
+    secretKey: string;
+    url: string;
+    region: string | null;
+    forcePathStyle: boolean;
 }
 
 export interface GetStorageNamesResponse {
@@ -514,6 +553,32 @@ export class StoragesApi {
             ._http
             .patch(
                 `/api/storages/google-cloud-storage/${externalId}/details`, request, {
+                headers: new HttpHeaders({
+                    'Content-Type':  'application/json'
+                })
+            });
+
+        await firstValueFrom(call);
+    }
+
+    public async createS3CompatibleStorage(request: CreateS3CompatibleStorageRequest): Promise<CreateS3CompatibleStorageResponse> {
+        const call = this
+            ._http
+            .post<CreateS3CompatibleStorageResponse>(
+                `/api/storages/s3-compatible`, request, {
+                headers: new HttpHeaders({
+                    'Content-Type':  'application/json'
+                })
+            });
+
+        return await firstValueFrom(call);
+    }
+
+    public async updateS3CompatibleStorageDetails(externalId: string, request: UpdateS3CompatibleStorageDetailsRequest): Promise<void> {
+        const call = this
+            ._http
+            .patch(
+                `/api/storages/s3-compatible/${externalId}/details`, request, {
                 headers: new HttpHeaders({
                     'Content-Type':  'application/json'
                 })

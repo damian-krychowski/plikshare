@@ -6,7 +6,6 @@ using PlikShare.IntegrationTests.Infrastructure;
 using PlikShare.IntegrationTests.Infrastructure.Apis;
 using PlikShare.IntegrationTests.Infrastructure.Storage;
 using PlikShare.Storages.Encryption;
-using PlikShare.Storages.Entities;
 using PlikShare.Uploads.FilePartUpload.Complete.Contracts;
 using PlikShare.Uploads.Id;
 using PlikShare.Uploads.Initiate.Contracts;
@@ -38,7 +37,7 @@ public class storage_abort_multipart_upload_tests : TestFixture
     [MemberData(nameof(StorageTheoryData.AllStoragesWithNoEncryption),
         MemberType = typeof(StorageTheoryData))]
     public async Task aborted_multipart_upload_should_remove_upload_state_from_db_and_storage(
-        StorageType provider,
+        TestStorageBackend provider,
         StorageEncryptionType encryptionType)
     {
         //given
@@ -118,7 +117,7 @@ public class storage_abort_multipart_upload_tests : TestFixture
     [MemberData(nameof(StorageTheoryData.AllStoragesWithNoEncryption),
         MemberType = typeof(StorageTheoryData))]
     public async Task abort_should_succeed_when_no_parts_were_uploaded_yet(
-        StorageType provider,
+        TestStorageBackend provider,
         StorageEncryptionType encryptionType)
     {
         //given

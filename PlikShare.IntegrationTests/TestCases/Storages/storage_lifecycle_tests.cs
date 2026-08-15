@@ -1,7 +1,7 @@
 using FluentAssertions;
 using PlikShare.IntegrationTests.Infrastructure;
+using PlikShare.IntegrationTests.Infrastructure.Storage;
 using PlikShare.Storages.Encryption;
-using PlikShare.Storages.Entities;
 using Xunit.Abstractions;
 
 namespace PlikShare.IntegrationTests.TestCases.Storages;
@@ -19,15 +19,17 @@ public class storage_lifecycle_tests : TestFixture
     }
 
     [Theory]
-    [InlineData(StorageType.AwsS3)]
-    [InlineData(StorageType.CloudflareR2)]
-    [InlineData(StorageType.BackblazeB2)]
-    [InlineData(StorageType.DigitalOceanSpaces)]
-    [InlineData(StorageType.AzureBlob)]
-    [InlineData(StorageType.GoogleCloudStorage)]
-    [InlineData(StorageType.HardDrive)]
+    [InlineData(TestStorageBackend.AwsS3)]
+    [InlineData(TestStorageBackend.CloudflareR2)]
+    [InlineData(TestStorageBackend.BackblazeB2)]
+    [InlineData(TestStorageBackend.DigitalOceanSpaces)]
+    [InlineData(TestStorageBackend.AzureBlob)]
+    [InlineData(TestStorageBackend.GoogleCloudStorage)]
+    [InlineData(TestStorageBackend.S3CompatibleMinio)]
+    [InlineData(TestStorageBackend.S3CompatibleRustfs)]
+    [InlineData(TestStorageBackend.HardDrive)]
     public async Task storage_can_be_created_and_appears_on_the_list(
-        StorageType provider)
+        TestStorageBackend provider)
     {
         //when - create endpoint runs S3Client.TestConnection (probe-bucket
         //create+delete) so a successful response proves credentials work

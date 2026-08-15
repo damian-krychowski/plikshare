@@ -18,6 +18,7 @@ using PlikShare.Storages.S3.BackblazeB2;
 using PlikShare.Storages.S3.CloudflareR2;
 using PlikShare.Storages.S3.DigitalOcean;
 using PlikShare.Storages.S3.GoogleCloudStorage;
+using PlikShare.Storages.S3.S3Compatible;
 using PlikShare.Trash;
 using Serilog;
 
@@ -115,7 +116,8 @@ public static class StorageStartupExtensions
                     StorageType.CloudflareR2 or
                     StorageType.AwsS3 or
                     StorageType.DigitalOceanSpaces or
-                    StorageType.GoogleCloudStorage => BuildS3StorageClient(
+                    StorageType.GoogleCloudStorage or
+                    StorageType.S3Compatible => BuildS3StorageClient(
                         storage,
                         config),
 
@@ -270,6 +272,28 @@ public static class StorageStartupExtensions
             // No lifecycle rules — GCS XML interop doesn't support
             // AbortIncompleteMultipartUpload. See GoogleCloudStorageClientFactory
             // for the gsutil-based operator workaround.
+            return (client, [], corsConfigurator);
+        }
+
+        if (storage.Type == StorageType.S3Compatible)
+        {
+            var details = Json.Deserialize<S3CompatibleDetailsEntity>(storage.DetailsJson)!;
+
+            var client = S3Client.BuildS3CompatibleClientOrThrow(
+                accessKey: details.AccessKey,
+                secretKey: details.SecretKey,
+                url: details.Url,
+                region: details.Region,
+                forcePathStyle: details.ForcePathStyle);
+
+            Func<string, CancellationToken, Task> corsConfigurator =
+                (bucketName, ct) => S3CompatibleCorsConfigurer.TryPutBucketCors(
+                    client: client,
+                    bucketName: bucketName,
+                    allowedOrigin: config.AppUrl,
+                    cancellationToken: ct);
+
+            // No lifecycle rules — see S3CompatibleStorageClientFactory.
             return (client, [], corsConfigurator);
         }
 

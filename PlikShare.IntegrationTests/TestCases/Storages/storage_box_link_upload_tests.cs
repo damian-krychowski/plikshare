@@ -3,7 +3,6 @@ using PlikShare.BoxExternalAccess.Contracts;
 using PlikShare.IntegrationTests.Infrastructure;
 using PlikShare.IntegrationTests.Infrastructure.Storage;
 using PlikShare.Storages.Encryption;
-using PlikShare.Storages.Entities;
 using PlikShare.Uploads.Id;
 using PlikShare.Uploads.Initiate.Contracts;
 using Xunit.Abstractions;
@@ -42,7 +41,7 @@ public class storage_box_link_upload_tests : TestFixture
     [MemberData(nameof(StorageTheoryData.AllStoragesWithoutFullEncryption),
         MemberType = typeof(StorageTheoryData))]
     public async Task anonymous_visitor_should_upload_multipart_file_via_box_link(
-        StorageType provider,
+        TestStorageBackend provider,
         StorageEncryptionType encryptionType)
     {
         //given

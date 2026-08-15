@@ -2,7 +2,6 @@ using FluentAssertions;
 using PlikShare.IntegrationTests.Infrastructure;
 using PlikShare.IntegrationTests.Infrastructure.Storage;
 using PlikShare.Storages.Encryption;
-using PlikShare.Storages.Entities;
 using Xunit.Abstractions;
 
 namespace PlikShare.IntegrationTests.TestCases.Storages;
@@ -35,7 +34,7 @@ public class storage_single_chunk_upload_tests : TestFixture
     [MemberData(nameof(StorageTheoryData.AllStoragesWithNoEncryption),
         MemberType = typeof(StorageTheoryData))]
     public async Task single_chunk_upload_and_download_should_return_same_content(
-        StorageType provider,
+        TestStorageBackend provider,
         StorageEncryptionType encryptionType)
     {
         //given
