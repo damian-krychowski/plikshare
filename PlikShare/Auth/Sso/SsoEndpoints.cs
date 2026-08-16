@@ -330,7 +330,8 @@ public static class SsoEndpoints
                 ["redirect_uri"] = redirectUri,
                 ["client_id"] = clientId,
                 ["client_secret"] = clientSecret,
-                ["code_verifier"] = codeVerifier
+                ["code_verifier"] = codeVerifier,
+                ["scope"] = "openid email profile"
             });
 
             var response = await client.PostAsync(
